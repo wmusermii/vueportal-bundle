@@ -3,15 +3,32 @@ import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
 import express from 'express'
+import { pool } from './connector/db'
 import { Server } from 'socket.io'
+
+import cookieParser from 'cookie-parser'
+import { authRouter } from './routes/auth'
+
+import { requireAuth } from './middleware/auth'
+import { usersRouter } from './routes/users'
+
+import { menusRouter } from './routes/menus'
+
 
 const app = express()
 const server = http.createServer(app)
 const io = new Server(server)
 
+app.use(express.json())
+app.use(cookieParser())
+
+app.use('/api/auth', authRouter)
+app.use('/api/users', requireAuth, usersRouter)
+app.use('/api/menus', requireAuth, menusRouter)
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })
 })
+
 
 io.on('connection', (socket) => {
   console.log('socket terhubung:', socket.id)
