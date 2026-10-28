@@ -27,7 +27,8 @@ function onFolderClick() {
 </script>
 
 <template>
-  <li class="nav-item" :class="`level-${level}`">
+  <!-- <li class="nav-item" :class="`level-${level}`"> -->
+    <li class="nav-item" :class="[`level-${level}`, { 'is-folder': isFolder }]">
     <button
       v-if="isFolder"
       class="nav-link"

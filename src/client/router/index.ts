@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'master/akses/users', name: 'users', component: () => import('@/pages/UsersPage.vue'), meta: { menu: 'users' } },
         { path: 'master/akses/groups', name: 'groups', component: () => import('@/pages/GroupsPage.vue'), meta: { menu: 'groups' } },
         { path: 'master/akses/menus', name: 'menus', component: () => import('@/pages/MenusPage.vue'), meta: { menu: 'menus' } },
+        { path: 'master/settings/portal', name: 'portal-settings', component: () => import('@/pages/PortalSettingsPage.vue'), meta: { menu: 'portal' } },
         { path: 'forbidden', name: 'forbidden', component: () => import('@/pages/ForbiddenPage.vue') },
         { path: 'profile', name: 'profile', component: () => import('@/pages/ProfilePage.vue') },
       ],

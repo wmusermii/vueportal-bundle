@@ -4,7 +4,9 @@ import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
 import TablePager from '@/components/TablePager.vue'
-import { usePaging } from '@/lib/usePaging'
+import SortTh from '@/components/SortTh.vue'
+import TableToolbar from '@/components/TableToolbar.vue'
+import { useTable } from '@/lib/useTable'
 interface GroupRow {
   id: string
   code: string
@@ -32,7 +34,29 @@ const ACTIONS: { key: ActionKey; label: string }[] = [
 
 const auth = useAuthStore()
 const groups = ref<GroupRow[]>([])
-const { page, pageSize, total, paged } = usePaging(groups)
+const statusFilter = ref<'' | 'active' | 'inactive'>('')
+const memberFilter = ref<'' | 'with' | 'without'>('')
+
+const { query, sortKey, sortDir, toggleSort, page, pageSize, total, paged } = useTable(groups, {
+  searchText: (g) => [g.name, g.code, g.description ?? ''].join(' '),
+  sorters: {
+    name: (g) => g.name,
+    description: (g) => g.description || null,
+    members: (g) => g.memberCount,
+    status: (g) => g.status,
+  },
+  extraFilter: (g) =>
+    (!statusFilter.value || g.status === statusFilter.value) &&
+    (!memberFilter.value || (memberFilter.value === 'with' ? g.memberCount > 0 : g.memberCount === 0)),
+  resetOn: [statusFilter, memberFilter],
+})
+
+const filtering = computed(() => !!query.value || !!statusFilter.value || !!memberFilter.value)
+function resetFilters() {
+  query.value = ''
+  statusFilter.value = ''
+  memberFilter.value = ''
+}
 const pages = ref<PageRef[]>([])
 const loading = ref(true)
 const pageError = ref('')
@@ -205,14 +229,28 @@ async function confirmDelete() {
   <p v-if="pageError" class="alert" role="alert">{{ pageError }}</p>
 
   <section class="panel panel-flush">
+    <TableToolbar v-model="query" placeholder="Cari nama, kode, atau deskripsi">
+      <select v-model="statusFilter" class="input" aria-label="Filter status">
+        <option value="">Semua status</option>
+        <option value="active">Aktif</option>
+        <option value="inactive">Nonaktif</option>
+      </select>
+      <select v-model="memberFilter" class="input" aria-label="Filter anggota">
+        <option value="">Semua group</option>
+        <option value="with">Ada anggota</option>
+        <option value="without">Tanpa anggota</option>
+      </select>
+      <button v-if="filtering" type="button" class="btn btn-ghost btn-sm" @click="resetFilters">Reset</button>
+    </TableToolbar>
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Group</th>
-            <th>Deskripsi</th>
-            <th>Anggota</th>
-            <th>Status</th>
+            <SortTh label="Group" :active="sortKey === 'name'" :dir="sortDir" @sort="toggleSort('name')" />
+            <SortTh label="Deskripsi" :active="sortKey === 'description'" :dir="sortDir"
+              @sort="toggleSort('description')" />
+            <SortTh label="Anggota" :active="sortKey === 'members'" :dir="sortDir" @sort="toggleSort('members')" />
+            <SortTh label="Status" :active="sortKey === 'status'" :dir="sortDir" @sort="toggleSort('status')" />
             <th></th>
           </tr>
         </thead>
@@ -222,6 +260,9 @@ async function confirmDelete() {
           </tr>
           <tr v-else-if="groups.length === 0">
             <td colspan="5" class="muted">Belum ada group. Klik "Tambah group" untuk membuat yang pertama.</td>
+          </tr>
+          <tr v-else-if="total === 0">
+            <td colspan="5" class="muted">Tidak ada group yang cocok dengan pencarian atau filter.</td>
           </tr>
           <tr v-for="g in paged" :key="g.id">
             <td>
@@ -250,7 +291,7 @@ async function confirmDelete() {
           </tr>
         </tbody>
       </table>
-        </div>
+    </div>
     <TablePager v-if="total > 0" v-model:page="page" v-model:pageSize="pageSize" :total="total" />
   </section>
 

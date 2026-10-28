@@ -1,1 +1,8 @@
 psql -h HOST -p 5432 -U USER -d NAMA_DB -v ON_ERROR_STOP=1 -f 01_newinstallation.sql -f 02_newseeds.sql
+
+
+//====== INI SCRIPT MENCIPTAKAN PARAM_ENC_KEY JWT_SECRET=hasil-acak-tadi
+node -p "require('crypto').randomBytes(48).toString('hex')"
+
+//====== INI SCRIPT MENCIPTAKAN PARAM_ENC_KEY
+node -p "require('crypto').randomBytes(32).toString('hex')" 

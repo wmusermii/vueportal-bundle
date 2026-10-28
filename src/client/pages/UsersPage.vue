@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
 import TablePager from '@/components/TablePager.vue'
-import { usePaging } from '@/lib/usePaging'
+import SortTh from '@/components/SortTh.vue'
+import TableToolbar from '@/components/TableToolbar.vue'
+import { useTable } from '@/lib/useTable'
 
 
 interface UserRow {
@@ -19,7 +21,35 @@ interface UserRow {
 
 const auth = useAuthStore()
 const users = ref<UserRow[]>([])
-const { page, pageSize, total, paged } = usePaging(users)
+const statusFilter = ref<'' | 'active' | 'inactive'>('')
+const groupFilter = ref('') // '' = semua, '-' = belum ada group, selain itu nama group
+
+const groupFilterOptions = computed(() =>
+  [...new Set(users.value.flatMap((u) => u.groups.map((g) => g.name)))].sort(),
+)
+
+const { query, sortKey, sortDir, toggleSort, page, pageSize, total, paged } = useTable(users, {
+  searchText: (u) => [u.fullName, u.username, u.email, ...u.groups.map((g) => g.name)].join(' '),
+  sorters: {
+    name: (u) => u.fullName,
+    email: (u) => u.email,
+    group: (u) => u.groups[0]?.name ?? null,
+    status: (u) => u.status,
+    lastLogin: (u) => (u.lastLoginAt ? Date.parse(u.lastLoginAt) : null),
+  },
+  extraFilter: (u) =>
+    (!statusFilter.value || u.status === statusFilter.value) &&
+    (!groupFilter.value ||
+      (groupFilter.value === '-' ? u.groups.length === 0 : u.groups.some((g) => g.name === groupFilter.value))),
+  resetOn: [statusFilter, groupFilter],
+})
+
+const filtering = computed(() => !!query.value || !!statusFilter.value || !!groupFilter.value)
+function resetFilters() {
+  query.value = ''
+  statusFilter.value = ''
+  groupFilter.value = ''
+}
 const loading = ref(true)
 const pageError = ref('')
 
@@ -129,22 +159,40 @@ async function confirmDelete() {
   <p v-if="pageError" class="alert" role="alert">{{ pageError }}</p>
 
   <section class="panel panel-flush">
+    <TableToolbar v-model="query" placeholder="Cari nama, username, email, atau group">
+      <select v-model="statusFilter" class="input" aria-label="Filter status">
+        <option value="">Semua status</option>
+        <option value="active">Aktif</option>
+        <option value="inactive">Nonaktif</option>
+      </select>
+      <select v-model="groupFilter" class="input" aria-label="Filter group">
+        <option value="">Semua group</option>
+        <option value="-">Belum ada group</option>
+        <option v-for="g in groupFilterOptions" :key="g" :value="g">{{ g }}</option>
+      </select>
+      <button v-if="filtering" type="button" class="btn btn-ghost btn-sm" @click="resetFilters">Reset</button>
+    </TableToolbar>
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Nama</th>
-            <th>Email</th>
-            <th>Group</th>
-            <th>Status</th>
-            <th>Login terakhir</th>
+            <SortTh label="Nama" :active="sortKey === 'name'" :dir="sortDir" @sort="toggleSort('name')" />
+            <SortTh label="Email" :active="sortKey === 'email'" :dir="sortDir" @sort="toggleSort('email')" />
+            <SortTh label="Group" :active="sortKey === 'group'" :dir="sortDir" @sort="toggleSort('group')" />
+            <SortTh label="Status" :active="sortKey === 'status'" :dir="sortDir" @sort="toggleSort('status')" />
+            <SortTh label="Login terakhir" :active="sortKey === 'lastLogin'" :dir="sortDir" @sort="toggleSort('lastLogin')" />
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading"><td colspan="6" class="muted">Memuat...</td></tr>
+          <tr v-if="loading">
+            <td colspan="6" class="muted">Memuat...</td>
+          </tr>
           <tr v-else-if="users.length === 0">
             <td colspan="6" class="muted">Belum ada pengguna. Klik "Tambah pengguna" untuk membuat yang pertama.</td>
+          </tr>
+          <tr v-else-if="total === 0">
+            <td colspan="6" class="muted">Tidak ada pengguna yang cocok dengan pencarian atau filter.</td>
           </tr>
           <tr v-for="u in paged" :key="u.id">
             <td>
@@ -166,18 +214,15 @@ async function confirmDelete() {
               <button v-if="auth.can('users', 'update')" class="btn btn-ghost btn-sm" @click="openEdit(u)">
                 Ubah
               </button>
-              <button
-                v-if="auth.can('users', 'delete')"
-                class="btn btn-ghost btn-sm btn-text-danger"
-                @click="askDelete(u)"
-              >
+              <button v-if="auth.can('users', 'delete')" class="btn btn-ghost btn-sm btn-text-danger"
+                @click="askDelete(u)">
                 Hapus
               </button>
             </td>
           </tr>
         </tbody>
       </table>
-        </div>
+    </div>
     <TablePager v-if="total > 0" v-model:page="page" v-model:pageSize="pageSize" :total="total" />
   </section>
 
@@ -199,10 +244,8 @@ async function confirmDelete() {
       </div>
       <div class="field">
         <label for="f-pass">{{ editing ? 'Password baru' : 'Password' }}</label>
-        <input
-          id="f-pass" v-model="form.password" type="password" class="input" autocomplete="new-password"
-          :placeholder="editing ? 'Kosongkan jika tidak diganti' : 'Minimal 8 karakter'"
-        />
+        <input id="f-pass" v-model="form.password" type="password" class="input" autocomplete="new-password"
+          :placeholder="editing ? 'Kosongkan jika tidak diganti' : 'Minimal 8 karakter'" />
       </div>
       <div class="field">
         <label for="f-status">Status</label>
