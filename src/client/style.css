@@ -168,7 +168,8 @@ a { color: var(--primary); }
   background: var(--primary); color: var(--primary-ink); font-size: .8rem; font-weight: 700;
 }
 .menu-btn { display: none; }
-.content { width: 100%; max-width: 1280px; padding: 28px; }
+/* .content { width: 100%; max-width: 1280px; padding: 28px; } */
+.content { width: 100%; padding: 28px; }
 .page-head { margin-bottom: 20px; }
 .page-head p { margin: 4px 0 0; color: var(--text-2); }
 .panel { padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
@@ -274,7 +275,21 @@ dialog.modal.modal-wide { width: min(760px, calc(100vw - 32px)); }
 .pager-gap { padding: 0 4px; }
 .pager .btn-sm { min-width: 32px; padding: 0 10px; }
 .input-sm { width: auto; height: 30px; padding: 0 8px; }
+/* ===== Sidebar ciut (desktop) ===== */
+.shell { transition: grid-template-columns .2s ease; }
+.sidebar { overflow-x: hidden; }
+.shell.collapsed { --side-w: 68px; }
+.shell.collapsed .brand { justify-content: center; padding: 0; }
+.shell.collapsed .brand-text,
+.shell.collapsed .nav-title,
+.shell.collapsed .nav-chevron,
+.shell.collapsed .nav-children { display: none; }
+.shell.collapsed .nav { padding-left: 10px; padding-right: 10px; }
+.shell.collapsed .nav-link { justify-content: center; padding: 10px 0; }
+.shell.collapsed .nav-link.active::before { left: -10px; }
 
+.icon-btn { width: 38px; padding: 0; }
+.icon-btn svg { width: 20px; height: 20px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

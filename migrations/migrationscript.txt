@@ -1,0 +1,1 @@
+psql -h HOST -p 5432 -U USER -d NAMA_DB -v ON_ERROR_STOP=1 -f 01_newinstallation.sql -f 02_newseeds.sql

@@ -34,8 +34,8 @@ async function submit() {
 <template>
   <div class="login">
     <aside class="login-aside">
-      <div class="brand"><span class="brand-mark">V</span>Vue Express Portal</div>
-      <p class="login-tagline">Kelola pengguna, group, dan hak akses di satu tempat.</p>
+      <div class="brand"><span class="brand-mark">VX</span>Vue Express Portal</div>
+      <p class="login-tagline">Simple Administrator Themes By Vue 3.5 & Express.</p>
     </aside>
     <section class="login-main">
       <form class="login-form" @submit.prevent="submit">
