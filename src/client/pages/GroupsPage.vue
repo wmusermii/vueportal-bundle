@@ -3,7 +3,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
-
+import TablePager from '@/components/TablePager.vue'
+import { usePaging } from '@/lib/usePaging'
 interface GroupRow {
   id: string
   code: string
@@ -31,6 +32,7 @@ const ACTIONS: { key: ActionKey; label: string }[] = [
 
 const auth = useAuthStore()
 const groups = ref<GroupRow[]>([])
+const { page, pageSize, total, paged } = usePaging(groups)
 const pages = ref<PageRef[]>([])
 const loading = ref(true)
 const pageError = ref('')
@@ -221,7 +223,7 @@ async function confirmDelete() {
           <tr v-else-if="groups.length === 0">
             <td colspan="5" class="muted">Belum ada group. Klik "Tambah group" untuk membuat yang pertama.</td>
           </tr>
-          <tr v-for="g in groups" :key="g.id">
+          <tr v-for="g in paged" :key="g.id">
             <td>
               <div class="cell-title">
                 {{ g.name }}
@@ -248,7 +250,8 @@ async function confirmDelete() {
           </tr>
         </tbody>
       </table>
-    </div>
+        </div>
+    <TablePager v-if="total > 0" v-model:page="page" v-model:pageSize="pageSize" :total="total" />
   </section>
 
   <!-- Form tambah / ubah -->

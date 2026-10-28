@@ -63,12 +63,19 @@ a { color: var(--primary); }
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
 .btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
 .btn-danger { background: var(--danger); color: #fff; }
-.btn-block { width: 100%; height: 42px; }
-
-.field { margin-bottom: 16px; }
+/* .btn-block { width: 100%; height: 42px; } */
+.btn-block { width: 100%; }
+/* .field { margin-bottom: 16px; }
 .field label { display: block; margin-bottom: 6px; font-size: .875rem; font-weight: 600; }
 .input {
   width: 100%; height: 42px; padding: 0 12px;
+  font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+} */
+ .field { margin-bottom: 14px; }
+.field label { display: block; margin-bottom: 4px; font-size: .875rem; font-weight: 600; }
+.input {
+  width: 100%; height: 38px; padding: 0 12px;
   font: inherit; color: var(--text);
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
 }
@@ -79,7 +86,7 @@ a { color: var(--primary); }
   margin: 0 0 16px; padding: 10px 12px; border-radius: 8px;
   font-size: .9rem; color: var(--danger); background: var(--danger-bg);
 }
-.input-wrap { position: relative; }
+/* .input-wrap { position: relative; }
 .input-wrap .input { padding-right: 44px; }
 .input-toggle {
   position: absolute; top: 0; right: 0;
@@ -88,7 +95,17 @@ a { color: var(--primary); }
   color: var(--text-2); cursor: pointer;
 }
 .input-toggle:hover { color: var(--text); }
-.input-toggle svg { width: 20px; height: 20px; }
+.input-toggle svg { width: 20px; height: 20px; } */
+.input-wrap { position: relative; }
+.input-wrap .input { padding-right: 38px; }
+.input-toggle {
+  position: absolute; top: 0; right: 0;
+  display: grid; place-items: center; width: 38px; height: 38px;
+  border: 0; border-radius: 0 8px 8px 0; background: none;
+  color: var(--text-2); cursor: pointer;
+}
+.input-toggle:hover { color: var(--text); }
+.input-toggle svg { width: 18px; height: 18px; }
 /* ===== Kerangka aplikasi ===== */
 .shell { display: grid; grid-template-columns: var(--side-w) 1fr; min-height: 100vh; }
 
@@ -160,11 +177,13 @@ a { color: var(--primary); }
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .table th {
-  padding: 10px 14px; text-align: left; white-space: nowrap;
+  padding: 8px 14px; text-align: left; white-space: nowrap;
   font-size: .85rem; font-weight: 600; color: var(--text-2);
   border-bottom: 1px solid var(--line);
 }
-.table td { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.table td { padding: 7px 14px; border-bottom: 1px solid var(--line); }
+/* .table th { padding: 8px 14px; }
+.table td { padding: 7px 14px; } */
 .table tbody tr:hover { background: var(--surface-2); }
 .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; }
 .badge-ok { color: var(--ok); background: var(--ok-bg); }
@@ -209,6 +228,7 @@ dialog.modal.modal-wide { width: min(760px, calc(100vw - 32px)); }
 .matrix th:first-child, .matrix td:first-child { text-align: left; }
 .matrix th { font-size: .85rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
 .matrix input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+/* .cell-title { line-height: 1.35; } */
 .cell-title .chip { margin: 0 0 0 8px; vertical-align: 1px; }
 
 .member-list {
@@ -242,6 +262,19 @@ dialog.modal.modal-wide { width: min(760px, calc(100vw - 32px)); }
 .avatar-sm { width: 24px; height: 24px; font-size: .65rem; }
 .dropdown-icon { width: 18px; height: 18px; color: var(--text-2); }
 .dropdown-item:hover { background: var(--surface-2); }
+
+/* ===== Paging ===== */
+.pager {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-top: 1px solid var(--line);
+  font-size: .875rem; color: var(--text-2);
+}
+.pager-info { display: flex; align-items: center; gap: 8px; }
+.pager-nav { display: flex; align-items: center; gap: 4px; }
+.pager-gap { padding: 0 4px; }
+.pager .btn-sm { min-width: 32px; padding: 0 10px; }
+.input-sm { width: auto; height: 30px; padding: 0 8px; }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
@@ -249,15 +282,20 @@ dialog.modal.modal-wide { width: min(760px, calc(100vw - 32px)); }
 /* ===== Halaman daftar ===== */
 .page-head-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .panel-flush { padding: 0; overflow: hidden; }
-.cell-title { font-weight: 600; }
-.cell-sub { font-size: .85rem; }
+/* .cell-title { font-weight: 600; } */
+.cell-title { line-height: 1.35; font-weight: 600;}
+
+/* .cell-sub { font-size: .85rem; } */
+.cell-sub { font-size: .8rem; line-height: 1.3; }
 .cell-actions { text-align: right; white-space: nowrap; }
-.chip {
+/* .chip {
   display: inline-block; margin: 0 6px 4px 0; padding: 2px 10px;
   font-size: .85rem; background: var(--surface-2);
   border: 1px solid var(--line); border-radius: 6px;
-}
-.btn-sm { height: 32px; padding: 0 12px; font-size: .875rem; }
+} */
+ .chip { display: inline-block; margin: 0 6px 0 0; padding: 1px 8px;font-size: .85rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px;}
+/* .btn-sm { height: 32px; padding: 0 12px; font-size: .875rem; } */
+.btn-sm { height: 30px; padding: 0 12px; font-size: .875rem; }
 .btn-text-danger { color: var(--danger); }
 .btn-text-danger:hover:not(:disabled) { background: var(--danger-bg); }
 
@@ -273,6 +311,7 @@ dialog.modal::backdrop { background: rgb(0 0 0 / .45); }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--line); }
 .fieldset { margin: 0 0 8px; padding: 0; border: 0; }
 .fieldset legend { padding: 0; margin-bottom: 6px; font-size: .875rem; font-weight: 600; }
-.check { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+/* .check { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; } */
+.check { display: flex; align-items: center; gap: 10px; padding: 4px 0; cursor: pointer; }
 .check input { width: 16px; height: 16px; accent-color: var(--primary); }
 .hint { margin: 6px 0 0; font-size: .85rem; }

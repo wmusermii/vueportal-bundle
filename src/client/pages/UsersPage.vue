@@ -3,6 +3,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
+import TablePager from '@/components/TablePager.vue'
+import { usePaging } from '@/lib/usePaging'
+
 
 interface UserRow {
   id: string
@@ -16,6 +19,7 @@ interface UserRow {
 
 const auth = useAuthStore()
 const users = ref<UserRow[]>([])
+const { page, pageSize, total, paged } = usePaging(users)
 const loading = ref(true)
 const pageError = ref('')
 
@@ -142,7 +146,7 @@ async function confirmDelete() {
           <tr v-else-if="users.length === 0">
             <td colspan="6" class="muted">Belum ada pengguna. Klik "Tambah pengguna" untuk membuat yang pertama.</td>
           </tr>
-          <tr v-for="u in users" :key="u.id">
+          <tr v-for="u in paged" :key="u.id">
             <td>
               <div class="cell-title">{{ u.fullName }}</div>
               <div class="muted cell-sub">{{ u.username }}</div>
@@ -173,7 +177,8 @@ async function confirmDelete() {
           </tr>
         </tbody>
       </table>
-    </div>
+        </div>
+    <TablePager v-if="total > 0" v-model:page="page" v-model:pageSize="pageSize" :total="total" />
   </section>
 
   <!-- Form tambah / ubah -->

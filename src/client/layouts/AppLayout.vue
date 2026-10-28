@@ -44,7 +44,7 @@ async function logout() {
 <template>
   <div class="shell">
     <aside class="sidebar" :class="{ open: sidebarOpen }" aria-label="Menu utama">
-      <div class="brand"><span class="brand-mark">K</span>Komibank Portal</div>
+      <div class="brand"><span class="brand-mark">V</span>Vue Express Portal</div>
       <nav class="nav">
         <ul>
           <SidebarItem v-for="m in auth.menus" :key="m.id" :node="m" :level="1" />
