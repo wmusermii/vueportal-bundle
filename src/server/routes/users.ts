@@ -6,7 +6,7 @@ import { pool } from '../connector/db'
 import { requirePermission } from '../middleware/permission'
 import { HttpError, badRequest, idParam, isSystemMember, sendError, withTx } from '../lib/helpers'
 import type {} from '../middleware/auth'
-
+import { assertPasswordPolicy } from '../services/passwordPolicy'
 export const usersRouter = Router()
 
 // ---------- validasi ----------
@@ -21,11 +21,11 @@ const createSchema = z.object({
     .trim()
     .toLowerCase()
     .regex(/^[a-z0-9_.]{3,50}$/, 'huruf kecil, angka, _ atau . (3-50 karakter)'),
-  password: z.string().min(8).max(100),
+  password: z.string().min(1).max(128),
   ...shared,
 })
 const updateSchema = z.object({
-  password: z.string().min(8).max(100).optional(),
+  password: z.string().min(1).max(128).optional(),
   ...shared,
 })
 
@@ -68,6 +68,7 @@ usersRouter.post('/', requirePermission('users', 'create'), async (req, res) => 
     return
   }
   try {
+    await assertPasswordPolicy(p.data.password)
     const hash = await bcrypt.hash(p.data.password, 10)
     const { rows } = await pool.query(
       `INSERT INTO portal.users (username, email, full_name, password_hash, status)
@@ -87,6 +88,7 @@ usersRouter.put('/:id', requirePermission('users', 'update'), async (req, res) =
     return
   }
   try {
+    if (p.data.password) await assertPasswordPolicy(p.data.password)
     const id = idParam(String(req.params.id))
     await withTx(async (c) => {
       const found = await c.query('SELECT 1 FROM portal.users WHERE id = $1 FOR UPDATE', [id])

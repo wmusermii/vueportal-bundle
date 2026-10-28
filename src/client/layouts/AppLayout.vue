@@ -3,7 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import SidebarItem from '@/components/SidebarItem.vue'
-
+import { usePortalStore } from '@/stores/portal'
+const portal = usePortalStore()
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
@@ -79,8 +80,8 @@ async function logout() {
   <div class="shell" :class="{ collapsed: rail }">
     <aside class="sidebar" :class="{ open: sidebarOpen }" aria-label="Menu utama">
       <div class="brand">
-        <span class="brand-mark">VX</span>
-        <span class="brand-text">Vue Express Portal</span>
+         <span class="brand-mark">{{ portal.initial }}</span>
+         <span class="brand-text">{{ portal.name }}</span>
       </div>
       <nav class="nav">
         <ul>

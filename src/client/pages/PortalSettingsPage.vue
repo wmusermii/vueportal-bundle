@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
+import { usePortalStore } from '@/stores/portal'
+const portal = usePortalStore()
 
 type ValueType = 'text' | 'number' | 'boolean' | 'secret'
 interface ParamRow {
@@ -182,6 +184,7 @@ async function save() {
     }
     formOpen.value = false
     await load()
+    void portal.load()
   } catch (e) {
     formError.value = msg(e)
   } finally {
@@ -207,6 +210,7 @@ async function confirmDelete() {
     await api.delete(`/api/parameters/${deleting.value.id}`)
     deleting.value = null
     await load()
+    void portal.load()
   } catch (e) {
     deleteError.value = msg(e)
   } finally {

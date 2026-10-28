@@ -16,8 +16,13 @@ import { menusRouter } from './routes/menus'
 import { groupsRouter } from './routes/groups'
 import { profileRouter } from './routes/profile'
 import { parametersRouter } from './routes/parameters'
+import { startLoginAttemptCleanup } from './services/loginSecurity'
+
+import { publicRouter } from './routes/public'
 
 const app = express()
+// di belakang reverse proxy (nginx), isi TRUST_PROXY=1 di .env agar IP klien terbaca benar
+app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 0))
 const server = http.createServer(app)
 const io = new Server(server)
 
@@ -30,6 +35,9 @@ app.use('/api/groups', requireAuth, groupsRouter)
 app.use('/api/profile', requireAuth, profileRouter)
 app.use('/api/menus', requireAuth, menusRouter)
 app.use('/api/parameters', requireAuth, parametersRouter)
+
+app.use('/api/public', publicRouter)
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })
 })
@@ -57,4 +65,5 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ message: 'Terjadi kesalahan pada server' })
 })
 const PORT = Number(process.env.PORT ?? 3000)
+startLoginAttemptCleanup()
 server.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`))

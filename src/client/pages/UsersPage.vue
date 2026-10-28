@@ -7,7 +7,7 @@ import TablePager from '@/components/TablePager.vue'
 import SortTh from '@/components/SortTh.vue'
 import TableToolbar from '@/components/TableToolbar.vue'
 import { useTable } from '@/lib/useTable'
-
+import { loadPasswordPolicy, passwordHint } from '@/lib/usePasswordPolicy'
 
 interface UserRow {
   id: string
@@ -88,6 +88,7 @@ async function load() {
 onMounted(load)
 
 function openCreate() {
+  void loadPasswordPolicy(true)
   editing.value = null
   Object.assign(form, { username: '', password: '', email: '', fullName: '', status: 'active' })
   formError.value = ''
@@ -95,6 +96,7 @@ function openCreate() {
 }
 
 function openEdit(u: UserRow) {
+  void loadPasswordPolicy(true)
   editing.value = u
   Object.assign(form, { username: u.username, password: '', email: u.email, fullName: u.fullName, status: u.status })
   formError.value = ''
@@ -245,7 +247,8 @@ async function confirmDelete() {
       <div class="field">
         <label for="f-pass">{{ editing ? 'Password baru' : 'Password' }}</label>
         <input id="f-pass" v-model="form.password" type="password" class="input" autocomplete="new-password"
-          :placeholder="editing ? 'Kosongkan jika tidak diganti' : 'Minimal 8 karakter'" />
+          :placeholder="editing ? 'Kosongkan jika tidak diganti' : ''" />
+        <p v-if="passwordHint" class="muted hint">{{ passwordHint }}</p>
       </div>
       <div class="field">
         <label for="f-status">Status</label>

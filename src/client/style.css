@@ -343,6 +343,10 @@ dialog.modal.modal-wide { width: min(760px, calc(100vw - 32px)); }
 .tab[aria-selected='true'] { color: var(--primary); border-bottom-color: var(--primary); }
 .tab-hint { margin: 0; padding: 10px 14px; font-size: .875rem; border-bottom: 1px solid var(--line); }
 
+.alert-info { color: var(--primary); background: #e3f1f0; }
+.alert-warn { color: #8a5a00; background: #fdf2d9; }
+
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

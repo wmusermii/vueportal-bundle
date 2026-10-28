@@ -2,6 +2,9 @@ import type { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { pool } from '../connector/db'
 
+import { isSystemUser } from '../lib/helpers'
+import { getBool, getNumber } from '../services/params'
+
 export const COOKIE_NAME = 'token'
 
 export interface AuthUser {
@@ -22,13 +25,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   try {
     const token = req.cookies?.[COOKIE_NAME]
     if (!token) {
-      res.status(401).json({ message: 'unauthorized!, User are not login yet!' })
+      res.status(401).json({ message: 'Belum login' })
       return
     }
 
     const payload = jwt.verify(token, process.env.JWT_SECRET as string, {
       algorithms: ['HS256'],
     }) as jwt.JwtPayload
+
+    // masa berlaku sesi mengikuti parameter, termasuk untuk sesi yang sudah berjalan
+    const hours = await getNumber('session', 'duration_hours', 8)
+    if (!payload.iat || Date.now() / 1000 > payload.iat + hours * 3600) {
+      res.status(401).json({ message: 'Sesi telah berakhir. Silakan masuk lagi.', expired: true })
+      return
+    }
 
     // user dicek ke DB tiap request: user yang dinonaktifkan langsung tidak bisa masuk
     const { rows } = await pool.query(
@@ -40,6 +50,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     if (!rows[0]) {
       res.status(401).json({ message: 'Sesi tidak valid' })
       return
+    }
+
+    // mode pemeliharaan: hanya admin yang boleh lanjut
+    if (await getBool('portal', 'maintenance_mode', false)) {
+      if (!(await isSystemUser(String(rows[0].id)))) {
+        res.status(401).json({ message: 'Portal sedang dalam pemeliharaan.', maintenance: true })
+        return
+      }
     }
 
     req.user = {

@@ -5,7 +5,7 @@ import { requirePermission } from '../middleware/permission'
 import { encryptSecret } from '../lib/crypto'
 import { HttpError, badRequest, idParam, sendError, withTx } from '../lib/helpers'
 import type {} from '../middleware/auth'
-
+import { invalidateParams } from '../services/params'
 export const parametersRouter = Router()
 
 const PARAM_ERRORS: Record<string, string> = {
@@ -80,6 +80,7 @@ parametersRouter.post('/', requirePermission('portal', 'create'), async (req, re
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id::text AS id`,
       [d.groupCode, d.key, value, d.valueType, d.options?.length ? d.options : null, d.numMin, d.numMax, d.description, req.user!.id],
     )
+    invalidateParams()
     res.status(201).json({ id: rows[0].id })
   } catch (e) {
     fail(res, e)
@@ -125,6 +126,7 @@ parametersRouter.put('/:id', requirePermission('portal', 'update'), async (req, 
         [id, value, d.description, options, numMin, numMax, req.user!.id],
       )
     })
+    invalidateParams()
     res.json({ ok: true })
   } catch (e) {
     fail(res, e)

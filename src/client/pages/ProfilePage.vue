@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
-
+import { loadPasswordPolicy, passwordHint } from '@/lib/usePasswordPolicy'
 interface Profile {
   id: string
   username: string
@@ -43,7 +43,10 @@ async function load() {
     loadError.value = msg(e)
   }
 }
-onMounted(load)
+onMounted(() => {
+  load()
+  loadPasswordPolicy(true)
+})
 
 async function saveInfo() {
   infoError.value = ''
@@ -63,10 +66,7 @@ async function saveInfo() {
 async function savePassword() {
   pwError.value = ''
   pwOk.value = ''
-  if (pw.next.length < 8) {
-    pwError.value = 'Password baru minimal 8 karakter'
-    return
-  }
+  
   if (pw.next !== pw.confirm) {
     pwError.value = 'Konfirmasi password tidak sama'
     return
@@ -142,6 +142,7 @@ async function savePassword() {
         <div class="field">
           <label for="pw-new">Password baru</label>
           <input id="pw-new" v-model="pw.next" :type="showPw ? 'text' : 'password'" class="input" autocomplete="new-password" placeholder="Minimal 8 karakter" />
+          <p v-if="passwordHint" class="muted hint">{{ passwordHint }}</p>
         </div>
         <div class="field">
           <label for="pw-confirm">Ulangi password baru</label>

@@ -277,6 +277,16 @@ CREATE TRIGGER trg_ug_touch
   BEFORE UPDATE ON portal.user_groups
   FOR EACH ROW EXECUTE FUNCTION portal.fn_ug_touch();
 
+CREATE TABLE portal.login_attempts (
+  id         bigint GENERATED ALWAYS AS IDENTITY,
+  username   varchar(50) NOT NULL,
+  ip         varchar(64) NOT NULL,
+  success    boolean     NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT pk_login_attempts PRIMARY KEY (id)
+);
+CREATE INDEX ix_login_attempts_ip   ON portal.login_attempts (ip, created_at DESC) WHERE NOT success;
+CREATE INDEX ix_login_attempts_user ON portal.login_attempts (username, created_at DESC);
 -- =====================================================================
 --  SEED
 -- =====================================================================

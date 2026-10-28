@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { pool } from '../connector/db'
 import { HttpError, badRequest, sendError } from '../lib/helpers'
 import type {} from '../middleware/auth'
-
+import { assertPasswordPolicy } from '../services/passwordPolicy'
 export const profileRouter = Router()
 
 const profileSchema = z.object({
@@ -15,7 +15,7 @@ const profileSchema = z.object({
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1).max(200),
-  newPassword: z.string().min(8).max(100),
+  newPassword: z.string().min(1).max(128),
 })
 
 // batasi tebakan password saat ini (mis. dari sesi yang dicuri)
@@ -74,6 +74,7 @@ profileRouter.put('/password', passwordLimiter, async (req, res) => {
     const ok = rows[0] && (await bcrypt.compare(p.data.currentPassword, rows[0].password_hash))
     if (!ok) throw new HttpError(400, 'Password saat ini salah')
     if (p.data.currentPassword === p.data.newPassword) {
+      await assertPasswordPolicy(p.data.newPassword)
       throw new HttpError(400, 'Password baru harus berbeda dari password saat ini')
     }
     const hash = await bcrypt.hash(p.data.newPassword, 10)
