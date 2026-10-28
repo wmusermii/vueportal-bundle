@@ -13,8 +13,8 @@ import { requireAuth } from './middleware/auth'
 import { usersRouter } from './routes/users'
 
 import { menusRouter } from './routes/menus'
-
-
+import { groupsRouter } from './routes/groups'
+import { profileRouter } from './routes/profile'
 const app = express()
 const server = http.createServer(app)
 const io = new Server(server)
@@ -24,6 +24,8 @@ app.use(cookieParser())
 
 app.use('/api/auth', authRouter)
 app.use('/api/users', requireAuth, usersRouter)
+app.use('/api/groups', requireAuth, groupsRouter)
+app.use('/api/profile', requireAuth, profileRouter)
 app.use('/api/menus', requireAuth, menusRouter)
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })
@@ -47,6 +49,9 @@ if (fs.existsSync(path.join(clientDir, 'index.html'))) {
     res.sendFile(path.join(clientDir, 'index.html'))
   })
 }
-
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err)
+  res.status(500).json({ message: 'Terjadi kesalahan pada server' })
+})
 const PORT = Number(process.env.PORT ?? 3000)
 server.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`))
