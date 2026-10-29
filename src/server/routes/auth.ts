@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { pool } from '../connector/db'
 import { isSystemUser } from '../lib/helpers'
 import { COOKIE_NAME, requireAuth } from '../middleware/auth'
-import { getPermissions } from '../services/permissions'
+import { getPermissions,getGroup  } from '../services/permissions'
 import { getBool, getNumber } from '../services/params'
 import { getPasswordPolicy } from '../services/passwordPolicy'
 import {
@@ -101,11 +101,17 @@ authRouter.post('/logout', (_req, res) => {
   res.json({ ok: true })
 })
 
+// authRouter.get('/me', requireAuth, async (req, res) => {
+//   const permissions = await getPermissions(req.user!.id)
+//   res.json({ user: req.user, permissions })
+// })
 authRouter.get('/me', requireAuth, async (req, res) => {
-  const permissions = await getPermissions(req.user!.id)
-  res.json({ user: req.user, permissions })
+  const [group, permissions] = await Promise.all([
+    getGroup(req.user!.id),
+    getPermissions(req.user!.id),
+  ])
+  res.json({ user: req.user, group, permissions })
 })
-
 // aturan password yang berlaku, untuk petunjuk di form
 authRouter.get('/password-policy', requireAuth, async (_req, res) => {
   res.json(await getPasswordPolicy())

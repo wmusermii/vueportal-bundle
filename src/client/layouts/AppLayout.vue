@@ -4,6 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import SidebarItem from '@/components/SidebarItem.vue'
 import { usePortalStore } from '@/stores/portal'
+
+import { connectSocket, disconnectSocket } from '@/lib/socket'
+
 const portal = usePortalStore()
 const auth = useAuthStore()
 const router = useRouter()
@@ -63,6 +66,7 @@ function onDocClick(e: MouseEvent) {
 onMounted(() => {
   mq.addEventListener('change', onMq)
   document.addEventListener('click', onDocClick)
+  connectSocket()
 })
 onBeforeUnmount(() => {
   mq.removeEventListener('change', onMq)
@@ -70,6 +74,7 @@ onBeforeUnmount(() => {
 })
 
 async function logout() {
+  disconnectSocket()
   menuOpen.value = false
   await auth.logout()
   await router.replace({ name: 'login' })

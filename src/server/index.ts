@@ -4,8 +4,8 @@ import path from 'node:path'
 import http from 'node:http'
 import express from 'express'
 import { pool } from './connector/db'
-import { Server } from 'socket.io'
-
+// import { Server } from 'socket.io'
+import { setupSocket } from './socket'
 import cookieParser from 'cookie-parser'
 import { authRouter } from './routes/auth'
 
@@ -24,8 +24,8 @@ const app = express()
 // di belakang reverse proxy (nginx), isi TRUST_PROXY=1 di .env agar IP klien terbaca benar
 app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 0))
 const server = http.createServer(app)
-const io = new Server(server)
-
+// const io = new Server(server)
+setupSocket(server)
 app.use(express.json())
 app.use(cookieParser())
 
@@ -43,10 +43,10 @@ app.get('/api/health', (_req, res) => {
 })
 
 
-io.on('connection', (socket) => {
-  console.log('socket terhubung:', socket.id)
-  socket.on('disconnect', () => console.log('socket putus:', socket.id))
-})
+// io.on('connection', (socket) => {
+//   console.log('socket terhubung:', socket.id)
+//   socket.on('disconnect', () => console.log('socket putus:', socket.id))
+// })
 
 // Production: layani hasil build Vue dari dist/client
 const clientDir = path.resolve(__dirname, '../client')

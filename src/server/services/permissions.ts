@@ -7,7 +7,7 @@ export interface MenuPermission {
   update: boolean
   delete: boolean
 }
-
+export interface UserGroup { code: string; name: string }
 export async function getPermissions(userId: string): Promise<MenuPermission[]> {
   const { rows } = await pool.query(
     `SELECT m.code AS menu,
@@ -25,4 +25,15 @@ export async function getPermissions(userId: string): Promise<MenuPermission[]> 
     [userId],
   )
   return rows
+}
+export async function getGroup(userId: string): Promise<UserGroup | null> {
+  const { rows } = await pool.query(
+    `SELECT g.code, g.name
+       FROM portal.user_groups ug
+       JOIN portal.groups g ON g.id = ug.group_id AND g.status = 'active'
+      WHERE ug.user_id = $1
+      LIMIT 1`,
+    [userId],
+  )
+  return rows[0] ?? null
 }

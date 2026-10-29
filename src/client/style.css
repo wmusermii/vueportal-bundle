@@ -346,6 +346,12 @@ dialog.modal.modal-wide { width: min(760px, calc(100vw - 32px)); }
 .alert-info { color: var(--primary); background: #e3f1f0; }
 .alert-warn { color: #8a5a00; background: #fdf2d9; }
 
+/* ===== Dashboard ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.stat-value { margin: 4px 0; font-size: 2rem; font-weight: 700; line-height: 1.2; }
+.stat-foot { display: flex; align-items: center; gap: 8px; font-size: .85rem; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dot.on { background: var(--ok); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

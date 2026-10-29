@@ -17,7 +17,7 @@ const router = createRouter({
       component: () => import('@/layouts/AppLayout.vue'),
       redirect: '/dashboard',
       children: [
-        { path: 'dashboard', name: 'dashboard', component: () => import('@/pages/DashboardPage.vue'), meta: { menu: 'dashboard' } },
+        { path: 'dashboard', name: 'dashboard', component: () => import('@/pages/DashboardView.vue'), meta: { menu: 'dashboard' } },
         { path: 'master/akses/users', name: 'users', component: () => import('@/pages/UsersPage.vue'), meta: { menu: 'users' } },
         { path: 'master/akses/groups', name: 'groups', component: () => import('@/pages/GroupsPage.vue'), meta: { menu: 'groups' } },
         { path: 'master/akses/menus', name: 'menus', component: () => import('@/pages/MenusPage.vue'), meta: { menu: 'menus' } },
