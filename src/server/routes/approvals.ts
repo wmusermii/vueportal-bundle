@@ -1,21 +1,17 @@
 import { Router, type Request, type Response, type RequestHandler } from 'express'
 import { requireAuth } from '../middleware/auth'
+import { sendError } from '../lib/helpers'
 import '../approval/handlers' // mendaftarkan semua handler
-import {
-  ApprovalError, createRequest, listRequests, countPending, groupOptions, decide,
-} from '../approval/service'
+import { createRequest, listRequests, countPending, groupOptions, decide } from '../approval/service'
+
 
 const wrap =
   (fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
-  async (req, res, next) => {
+  async (req, res) => {
     try {
       await fn(req, res)
     } catch (e) {
-      if (e instanceof ApprovalError) {
-        res.status(e.status).json({ message: e.message })
-        return
-      }
-      next(e)
+      sendError(res, e) // HttpError & turunannya, kode error database dipetakan; sisanya jadi 500
     }
   }
 

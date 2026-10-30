@@ -17,13 +17,13 @@ interface GroupRow {
   memberCount: number
 }
 interface PageRef { id: string; code: string; label: string }
-interface PermRow { menuId: string; create: boolean; read: boolean; update: boolean; delete: boolean }
+interface PermRow { menuId: string; create: boolean; read: boolean; update: boolean; delete: boolean; needsApproval: boolean }
 interface GroupDetail extends Omit<GroupRow, 'memberCount' | 'description'> {
   description: string
   permissions: PermRow[]
 }
 type ActionKey = 'read' | 'create' | 'update' | 'delete'
-type Perm = Record<ActionKey, boolean>
+type Perm = Record<ActionKey, boolean> & { needsApproval: boolean }
 
 const ACTIONS: { key: ActionKey; label: string }[] = [
   { key: 'read', label: 'Lihat' },
@@ -60,7 +60,8 @@ function resetFilters() {
 const pages = ref<PageRef[]>([])
 const loading = ref(true)
 const pageError = ref('')
-
+interface SaveResult { queued?: boolean; message?: string }
+const notice = ref('')
 const formOpen = ref(false)
 const editing = ref<GroupRow | null>(null)
 const saving = ref(false)
@@ -113,11 +114,13 @@ onMounted(load)
 function resetMatrix(perms: PermRow[] = []) {
   for (const k of Object.keys(matrix)) delete matrix[k]
   for (const p of pages.value) {
-    matrix[p.id] = { read: false, create: false, update: false, delete: false }
+    matrix[p.id] = { read: false, create: false, update: false, delete: false, needsApproval: false }
   }
   for (const r of perms) {
     if (matrix[r.menuId]) {
-      Object.assign(matrix[r.menuId], { read: r.read, create: r.create, update: r.update, delete: r.delete })
+      Object.assign(matrix[r.menuId], {
+        read: r.read, create: r.create, update: r.update, delete: r.delete, needsApproval: r.needsApproval,
+      })
     }
   }
 }
@@ -132,6 +135,7 @@ function setPerm(pageId: string, key: ActionKey, value: boolean) {
     p.delete = false
   }
   if (key !== 'read' && value) p.read = true
+  if (!(p.create || p.update || p.delete)) p.needsApproval = false
 }
 
 function openCreate() {
@@ -165,10 +169,14 @@ async function openEdit(g: GroupRow) {
     pageError.value = msg(e)
   }
 }
-
+const hasWrite = (pageId: string) => {
+  const p = matrix[pageId]
+  return !!p && (p.create || p.update || p.delete)
+}
 async function save() {
   saving.value = true
   formError.value = ''
+  notice.value = ''
   const body = {
     code: form.code,
     name: form.name,
@@ -177,15 +185,21 @@ async function save() {
     permissions: pages.value.map((p) => ({ menuId: p.id, ...matrix[p.id] })),
   }
   try {
+    const results: SaveResult[] = []
     if (editing.value) {
-      await api.put(`/api/groups/${editing.value.id}`, body)
+      results.push(await api.put<SaveResult>(`/api/groups/${editing.value.id}`, body))
       if (membersChanged.value) {
-        await api.put(`/api/groups/${editing.value.id}/members`, { userIds: memberIds.value })
+        results.push(
+          await api.put<SaveResult>(`/api/groups/${editing.value.id}/members`, { userIds: memberIds.value }),
+        )
       }
     } else {
-      await api.post('/api/groups', body)
+      results.push(await api.post<SaveResult>('/api/groups', body))
     }
     formOpen.value = false
+    const waiting = results.filter((r) => r.queued)
+    if (waiting.length === 1) notice.value = waiting[0].message ?? 'Perubahan diajukan dan menunggu persetujuan'
+    else if (waiting.length > 1) notice.value = `${waiting.length} perubahan diajukan dan menunggu persetujuan`
     await load()
   } catch (e) {
     formError.value = msg(e)
@@ -204,8 +218,9 @@ async function confirmDelete() {
   busy.value = true
   deleteError.value = ''
   try {
-    await api.delete(`/api/groups/${deleting.value.id}`)
+    const res = await api.delete<SaveResult>(`/api/groups/${deleting.value.id}`)
     deleting.value = null
+    notice.value = res.queued ? (res.message ?? 'Penghapusan diajukan dan menunggu persetujuan') : ''
     await load()
   } catch (e) {
     deleteError.value = msg(e)
@@ -227,7 +242,7 @@ async function confirmDelete() {
   </div>
 
   <p v-if="pageError" class="alert" role="alert">{{ pageError }}</p>
-
+  <p v-if="notice" class="alert alert-info" role="status">{{ notice }}</p>
   <section class="panel panel-flush">
     <TableToolbar v-model="query" placeholder="Cari nama, kode, atau deskripsi">
       <select v-model="statusFilter" class="input" aria-label="Filter status">
@@ -331,6 +346,7 @@ async function confirmDelete() {
               <tr>
                 <th>Halaman</th>
                 <th v-for="a in ACTIONS" :key="a.key">{{ a.label }}</th>
+                <th title="Perubahan oleh anggota group ini harus disetujui dulu">Butuh approval</th>
               </tr>
             </thead>
             <tbody>
@@ -340,10 +356,21 @@ async function confirmDelete() {
                   <input type="checkbox" :checked="matrix[p.id]?.[a.key]" :aria-label="`${a.label} ${p.label}`"
                     @change="setPerm(p.id, a.key, ($event.target as HTMLInputElement).checked)" />
                 </td>
+                <td>
+                  <input type="checkbox" :checked="matrix[p.id]?.needsApproval"
+                    :disabled="!auth.isAdmin || !hasWrite(p.id)" :aria-label="`Butuh approval ${p.label}`"
+                    @change="matrix[p.id].needsApproval = ($event.target as HTMLInputElement).checked" />
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p class="muted hint">
+          "Butuh approval": tambah, ubah, atau hapus oleh anggota group ini di halaman tersebut baru berlaku setelah
+          disetujui. Hanya Administrator yang dapat mengubah pilihan ini; izin tulis baru yang diberikan
+          non-Administrator
+          otomatis memerlukan approval.
+        </p>
         <p v-if="locked" class="muted hint">Izin, kode, dan status group sistem terkunci.</p>
       </fieldset>
       <fieldset v-if="editing" class="fieldset">

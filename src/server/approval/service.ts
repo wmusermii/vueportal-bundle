@@ -1,14 +1,15 @@
 import type { PoolClient } from "pg";
 import { pool } from "../connector/db"; // sesuaikan: file tempat Pool dibuat
-
-export class ApprovalError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-
+import { HttpError } from '../lib/helpers'
+// export class ApprovalError extends Error {
+//   status: number;
+//   constructor(status: number, message: string) {
+//     super(message);
+//     this.status = status;
+//   }
+// }
+// Turunan HttpError: otomatis dikenali sendError() di semua route
+export class ApprovalError extends HttpError {}
 export type Db = Pick<PoolClient, "query">;
 export type Json = Record<string, any>;
 
@@ -88,6 +89,7 @@ export async function createRequest(
   code: string,
   input: unknown,
   requestedBy: string | null,
+  opts: { trusted?: boolean } = {},
 ) {
   const h = handlers.get(code);
   if (!h) throw new ApprovalError(500, "Handler approval belum terdaftar");
@@ -103,7 +105,7 @@ export async function createRequest(
   if (!requestedBy) {
     if (!type.is_public)
       throw new ApprovalError(401, "Silakan login terlebih dahulu");
-  } else if (!type.is_public) {
+  } else if (!type.is_public && !opts.trusted) {
     const actor = await getActor(pool, requestedBy);
     if (!actor.isAdmin) {
       const {

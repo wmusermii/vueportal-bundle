@@ -101,6 +101,21 @@ const willFinish = computed(
   () => !!selected.value && (auth.isAdmin || selected.value.currentLevel >= selected.value.totalLevels),
 )
 const needsGroup = computed(() => selected.value?.typeCode === 'USER_REGISTRATION')
+// ---- tampilan perubahan data (tambah/ubah/hapus): tabel selisih + JSON lama/baru
+const actionLabel: Record<string, string> = { create: 'Tambah', update: 'Ubah', delete: 'Hapus' }
+const isChange = computed(() => !!selected.value && selected.value.payload.action in actionLabel)
+const show = (v: unknown) =>
+  v === undefined || v === null ? '-' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+const json = (v: unknown) => JSON.stringify(v ?? null, null, 2)
+const diffRows = computed(() => {
+  const p = selected.value?.payload
+  if (!p) return []
+  const o = (p.old ?? {}) as Record<string, unknown>
+  const n = (p.new ?? {}) as Record<string, unknown>
+  return [...new Set([...Object.keys(o), ...Object.keys(n)])]
+    .map((k) => ({ key: k, old: o[k], new: n[k], changed: JSON.stringify(o[k]) !== JSON.stringify(n[k]) }))
+    .filter((r) => p.action !== 'update' || r.changed) // ubah: hanya kolom yang berubah
+})
 
 async function openDetail(r: Row) {
   selected.value = r
@@ -226,13 +241,36 @@ async function decide(kind: 'approve' | 'reject') {
     <template v-if="selected">
       <p v-if="actionError" class="alert" role="alert">{{ actionError }}</p>
 
-      <h3 class="sec">Data pengajuan</h3>
-      <dl class="kv">
-        <template v-for="(v, k) in selected.payload" :key="k">
-          <dt>{{ fieldLabel[k] ?? k }}</dt>
-          <dd>{{ v }}</dd>
-        </template>
-      </dl>
+            <template v-if="isChange">
+        <h3 class="sec">{{ actionLabel[selected.payload.action] }}: {{ selected.payload.title }}</h3>
+        <table class="table diff">
+          <thead><tr><th>Field</th><th>Lama</th><th>Baru</th></tr></thead>
+          <tbody>
+            <tr v-for="r in diffRows" :key="r.key">
+              <td>{{ r.key }}</td>
+              <td>{{ show(r.old) }}</td>
+              <td>{{ show(r.new) }}</td>
+            </tr>
+            <tr v-if="diffRows.length === 0"><td colspan="3" class="muted">Tidak ada perbedaan data.</td></tr>
+          </tbody>
+        </table>
+        <details class="raw">
+          <summary>Lihat JSON</summary>
+          <p class="muted">Record lama</p>
+          <pre>{{ json(selected.payload.old) }}</pre>
+          <p class="muted">Record baru</p>
+          <pre>{{ json(selected.payload.new) }}</pre>
+        </details>
+      </template>
+      <template v-else>
+        <h3 class="sec">Data pengajuan</h3>
+        <dl class="kv">
+          <template v-for="(v, k) in selected.payload" :key="k">
+            <dt>{{ fieldLabel[k] ?? k }}</dt>
+            <dd>{{ v }}</dd>
+          </template>
+        </dl>
+      </template>
 
       <h3 class="sec">Riwayat persetujuan</h3>
       <ul class="steps">
@@ -292,4 +330,8 @@ async function decide(kind: 'approve' | 'reject') {
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
 .ok { color: #15803d; }
 .bad { color: #b91c1c; }
+.diff { width: 100%; font-size: 13px; }
+.diff td { word-break: break-word; vertical-align: top; }
+.raw { margin-top: 10px; font-size: 13px; }
+.raw pre { margin: 4px 0 10px; padding: 10px; background: #f3f4f6; border-radius: 8px; overflow: auto; max-height: 200px; }
 </style>

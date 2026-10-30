@@ -52,7 +52,8 @@ function resetFilters() {
 }
 const loading = ref(true)
 const pageError = ref('')
-
+interface SaveResult { queued?: boolean; message?: string }
+const notice = ref('')
 const formOpen = ref(false)
 const editing = ref<UserRow | null>(null)
 const saving = ref(false)
@@ -107,17 +108,20 @@ async function save() {
   saving.value = true
   formError.value = ''
   try {
+    notice.value = ''
+    let res: SaveResult
     if (editing.value) {
-      await api.put(`/api/users/${editing.value.id}`, {
+      res = await api.put<SaveResult>(`/api/users/${editing.value.id}`, {
         email: form.email,
         fullName: form.fullName,
         status: form.status,
         ...(form.password ? { password: form.password } : {}),
       })
     } else {
-      await api.post('/api/users', { ...form })
+      res = await api.post<SaveResult>('/api/users', { ...form })
     }
     formOpen.value = false
+    if (res.queued) notice.value = res.message ?? 'Perubahan diajukan dan menunggu persetujuan'
     await load()
   } catch (e) {
     formError.value = msg(e)
@@ -136,8 +140,9 @@ async function confirmDelete() {
   busy.value = true
   deleteError.value = ''
   try {
-    await api.delete(`/api/users/${deleting.value.id}`)
+    const res = await api.delete<SaveResult>(`/api/users/${deleting.value.id}`)
     deleting.value = null
+    notice.value = res.queued ? (res.message ?? 'Penghapusan diajukan dan menunggu persetujuan') : ''
     await load()
   } catch (e) {
     deleteError.value = msg(e)
@@ -159,7 +164,7 @@ async function confirmDelete() {
   </div>
 
   <p v-if="pageError" class="alert" role="alert">{{ pageError }}</p>
-
+  <p v-if="notice" class="alert alert-info" role="status">{{ notice }}</p>
   <section class="panel panel-flush">
     <TableToolbar v-model="query" placeholder="Cari nama, username, email, atau group">
       <select v-model="statusFilter" class="input" aria-label="Filter status">
@@ -182,7 +187,8 @@ async function confirmDelete() {
             <SortTh label="Email" :active="sortKey === 'email'" :dir="sortDir" @sort="toggleSort('email')" />
             <SortTh label="Group" :active="sortKey === 'group'" :dir="sortDir" @sort="toggleSort('group')" />
             <SortTh label="Status" :active="sortKey === 'status'" :dir="sortDir" @sort="toggleSort('status')" />
-            <SortTh label="Login terakhir" :active="sortKey === 'lastLogin'" :dir="sortDir" @sort="toggleSort('lastLogin')" />
+            <SortTh label="Login terakhir" :active="sortKey === 'lastLogin'" :dir="sortDir"
+              @sort="toggleSort('lastLogin')" />
             <th></th>
           </tr>
         </thead>
