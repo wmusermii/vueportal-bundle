@@ -1,6 +1,21 @@
-import { ApprovalError, type ApprovalHandler } from '../service'
-import { hashPassword } from '../../lib/password' // sesuaikan: fungsi hash yang dipakai create user
-import { assertPasswordPolicy } from '../../services/passwordPolicy' // sesuaikan: aturan password portal settings
+import { ApprovalError, type ApprovalHandler, type Db } from '../service'
+import { hashPassword } from '../../lib/password'
+import { assertPasswordPolicy } from '../../services/passwordPolicy'
+
+/** Validasi pilihan group untuk user baru. Group ADMIN hanya boleh dipilih Administrator. */
+async function checkGroup(db: Db, groupId: unknown, approverGroup: string): Promise<string> {
+  const id = String(groupId ?? '')
+  if (!/^\d+$/.test(id)) throw new ApprovalError(400, 'Group untuk user baru wajib dipilih')
+  const { rows: [g] } = await db.query(
+    `SELECT id, code FROM portal.groups WHERE id = $1 AND status = 'active'`,
+    [id],
+  )
+  if (!g) throw new ApprovalError(400, 'Group tidak valid')
+  if (g.code === 'ADMIN' && approverGroup !== 'ADMIN') {
+    throw new ApprovalError(403, 'Hanya Administrator yang boleh memberi group ADMIN')
+  }
+  return id
+}
 
 export const userRegistration: ApprovalHandler = {
   code: 'USER_REGISTRATION',
@@ -48,18 +63,16 @@ export const userRegistration: ApprovalHandler = {
     }
   },
 
-  async onApprove({ db, request, decision, approverId, approverGroup }) {
-    const groupId = String(decision.groupId ?? '')
-    if (!/^\d+$/.test(groupId)) throw new ApprovalError(400, 'Group untuk user baru wajib dipilih')
-
-    const { rows: [g] } = await db.query(
-      `SELECT id, code FROM portal.groups WHERE id = $1 AND status = 'active'`,
-      [groupId],
-    )
-    if (!g) throw new ApprovalError(400, 'Group tidak valid')
-    if (g.code === 'ADMIN' && approverGroup !== 'ADMIN') {
-      throw new ApprovalError(403, 'Hanya Administrator yang boleh memberi group ADMIN')
+  // approver boleh memilih group di tahap mana pun; kalau diisi, langsung diperiksa
+  async validateStep({ db, data, approverGroup }) {
+    if (data.groupId !== undefined && data.groupId !== null && data.groupId !== '') {
+      await checkGroup(db, data.groupId, approverGroup)
     }
+  },
+
+  // dijalankan saat tahap terakhir disetujui; groupId harus sudah dipilih di salah satu tahap
+  async onApprove({ db, request, decision, approverId, approverGroup }) {
+    const groupId = await checkGroup(db, decision.groupId, approverGroup)
 
     const p = request.payload
     try {
@@ -80,7 +93,7 @@ export const userRegistration: ApprovalHandler = {
     }
   },
 
-  redact({ passwordHash, ...rest }) {
+  redact({ passwordHash: _hidden, ...rest }) {
     return rest
   },
 }

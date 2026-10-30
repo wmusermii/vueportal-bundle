@@ -53,6 +53,12 @@ const router = createRouter({
           meta: { menu: "menus" },
         },
         {
+          path: "master/settings/approval",
+          name: "approval-settings",
+          component: () => import("@/pages/ApprovalSettingsPage.vue"),
+          meta: { menu: "approval_settings" },
+        },
+        {
           path: "master/settings/portal",
           name: "portal-settings",
           component: () => import("@/pages/PortalSettingsPage.vue"),
@@ -67,6 +73,12 @@ const router = createRouter({
           path: "profile",
           name: "profile",
           component: () => import("@/pages/ProfilePage.vue"),
+        },
+        {
+          path: "approvals",
+          name: "approvals",
+          component: () => import("@/pages/ApprovalsPage.vue"),
+          meta: { menu: "approvals" },
         },
       ],
     },

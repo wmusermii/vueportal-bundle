@@ -11,7 +11,8 @@ BEGIN;
 -- ---------------------------------------------------------------------
 INSERT INTO portal.groups (code, name, description, is_system) VALUES
   ('ADMIN',   'Administrator', 'Akses penuh',       true),
-  ('MANAGER', 'Manager',       'Akses operasional', false),
+  ('MANAGER', 'Manager', 'Akses operasional', false),
+  ('SUPERVISOR', 'Supervisor', 'Akses checker', false),
   ('STAFF',   'Staff',         'Akses terbatas',    false);
 
 -- ---------------------------------------------------------------------

@@ -19,6 +19,9 @@ const wrap =
     }
   }
 
+const isObject = (x: unknown): x is Record<string, any> =>
+  typeof x === 'object' && x !== null && !Array.isArray(x)
+
 // PUBLIK (tanpa login): self registration
 export const registerRouter = Router()
 registerRouter.post('/', wrap(async (req, res) => {
@@ -44,14 +47,18 @@ approvalRouter.get('/group-options', wrap(async (req, res) => {
 }))
 
 approvalRouter.post('/:id/approve', wrap(async (req, res) => {
-  await decide(String(req.params.id), req.user!.id, 'approve', {
-    decision: typeof req.body?.decision === 'object' && req.body.decision ? req.body.decision : {},
+  const r = await decide(String(req.params.id), req.user!.id, 'approve', {
+    data: isObject(req.body?.data) ? req.body.data : {},
     note: req.body?.note,
   })
-  res.json({ message: 'Pengajuan disetujui' })
+  res.json({
+    status: r.status,
+    level: r.level,
+    message: r.status === 'approved' ? 'Pengajuan disetujui' : `Disetujui. Diteruskan ke tahap ${r.level}`,
+  })
 }))
 
 approvalRouter.post('/:id/reject', wrap(async (req, res) => {
   await decide(String(req.params.id), req.user!.id, 'reject', { note: req.body?.note })
-  res.json({ message: 'Pengajuan ditolak' })
+  res.json({ status: 'rejected', message: 'Pengajuan ditolak' })
 }))
