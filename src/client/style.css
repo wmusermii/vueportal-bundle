@@ -221,7 +221,7 @@ select.input-sm { padding-right: 30px; background-position: right 10px center; }
 .login-main { display: grid; place-items: center; padding: 32px; }
 .login-form { width: 100%; max-width: 360px; }
 .login-form h1 { margin-bottom: 4px; }
-.login-form .muted { margin: 0 0 24px; }
+.login-form .muted { margin: 10px 0 24px; }
 
 /* ===== Responsif ===== */
 .scrim { display: none; }
@@ -392,4 +392,4 @@ dialog.modal::backdrop { background: rgb(0 0 0 / .45); }
 /* .check { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; } */
 .check { display: flex; align-items: center; gap: 10px; padding: 4px 0; cursor: pointer; }
 .check input { width: 16px; height: 16px; accent-color: var(--primary); }
-.hint { margin: 6px 0 0; font-size: .85rem; }
+.hint { margin: 12px 0 0; font-size: .85rem; }

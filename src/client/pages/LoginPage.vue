@@ -78,8 +78,11 @@ async function submit() {
         <button class="btn btn-primary btn-block" :disabled="loading">
           {{ loading ? 'Memproses...' : 'Masuk' }}
        </button>
-        <p v-if="portal.supportEmail" class="muted hint">
+        <!-- <p v-if="portal.supportEmail" class="muted hint">
           Butuh bantuan? Hubungi <a :href="`mailto:${portal.supportEmail}`">{{ portal.supportEmail }}</a>.
+        </p> -->
+        <p class="muted hint">
+          Belum punya akun? <RouterLink :to="{ name: 'register' }">Daftar</RouterLink>
         </p>
       </form>
     </section>
