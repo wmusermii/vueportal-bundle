@@ -22,7 +22,7 @@ import { publicRouter } from './routes/public'
 import { registerRouter, approvalRouter } from './routes/approvals'
 import { approvalSettingsRouter } from './routes/approvalSettings'
 
-
+import { publicThemeRouter, themeRouter } from './routes/theme'
 
 const app = express()
 // di belakang reverse proxy (nginx), isi TRUST_PROXY=1 di .env agar IP klien terbaca benar
@@ -43,6 +43,13 @@ app.use('/api/parameters', requireAuth, parametersRouter)
 app.use('/api/register', registerRouter)
 app.use('/api/approvals', approvalRouter)
 app.use('/api/approval-settings', approvalSettingsRouter)
+
+app.use('/api/theme', requireAuth, themeRouter)
+
+app.use('/api/public/theme', publicThemeRouter)
+app.use('/api/public', publicRouter)
+
+
 app.use('/api/public', publicRouter)
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })

@@ -7,6 +7,7 @@ import { usePortalStore } from '@/stores/portal'
 
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 
+import { theme } from '@/theme'
 const portal = usePortalStore()
 const auth = useAuthStore()
 const router = useRouter()
@@ -85,50 +86,37 @@ async function logout() {
   <div class="shell" :class="{ collapsed: rail }">
     <aside class="sidebar" :class="{ open: sidebarOpen }" aria-label="Menu utama">
       <div class="brand">
-         <span class="brand-mark">{{ portal.initial }}</span>
-         <span class="brand-text">{{ portal.name }}</span>
+        <img v-if="theme.logo_url" class="brand-logo" :src="theme.logo_url" alt="" />
+        <span v-else class="brand-mark">{{ portal.initial }}</span>
+        <span class="brand-text">{{ portal.name }}</span>
       </div>
       <nav class="nav">
         <ul>
-          <SidebarItem
-            v-for="m in auth.menus"
-            :key="m.id"
-            :node="m"
-            :level="1"
-            :collapsed="rail"
-            @expand="collapsed = false"
-          />
+          <SidebarItem v-for="m in auth.menus" :key="m.id" :node="m" :level="1" :collapsed="rail"
+            @expand="collapsed = false" />
         </ul>
       </nav>
     </aside>
     <div v-if="sidebarOpen" class="scrim" @click="sidebarOpen = false"></div>
     <div class="main">
       <header class="topbar">
-        <button
-          class="btn btn-ghost icon-btn"
+        <button class="btn btn-ghost icon-btn"
           :aria-label="isDesktop ? (rail ? 'Perluas sidebar' : 'Ciutkan sidebar') : 'Buka menu'"
-          :aria-expanded="isDesktop ? !rail : sidebarOpen"
-          @click="toggleSidebar"
-        >
+          :aria-expanded="isDesktop ? !rail : sidebarOpen" @click="toggleSidebar">
           <!-- <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="4" width="18" height="16" rx="2" />
             <path d="M9 4v16" />
           </svg> -->
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <path d="M4 6h16M4 12h16M4 18h16" />
-</svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
         </button>
 
         <div class="topbar-right">
           <div ref="menuEl" class="user-menu" @keydown.esc="menuOpen = false">
-            <button
-              class="avatar-btn"
-              aria-haspopup="menu"
-              :aria-expanded="menuOpen"
-              :title="auth.user?.fullName"
-              :aria-label="`Menu akun ${auth.user?.fullName ?? ''}`"
-              @click="menuOpen = !menuOpen"
-            >
+            <button class="avatar-btn" aria-haspopup="menu" :aria-expanded="menuOpen" :title="auth.user?.fullName"
+              :aria-label="`Menu akun ${auth.user?.fullName ?? ''}`" @click="menuOpen = !menuOpen">
               <span class="avatar">{{ initials }}</span>
             </button>
             <div v-if="menuOpen" class="dropdown" role="menu">
@@ -138,7 +126,8 @@ async function logout() {
               </router-link>
               <button class="dropdown-item" role="menuitem" @click="logout">
                 <span>Keluar</span>
-                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" />
                   <path d="M16 8l4 4-4 4M20 12H10" />
                 </svg>

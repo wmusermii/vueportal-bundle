@@ -4,6 +4,7 @@ import { api, ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
 import { usePortalStore } from '@/stores/portal'
+import ThemeTab from '@/pages/ThemeTab.vue'
 const portal = usePortalStore()
 
 type ValueType = 'text' | 'number' | 'boolean' | 'secret'
@@ -27,6 +28,7 @@ const GROUPS: Record<string, { label: string; hint: string }> = {
   smtp: { label: 'Email (SMTP)', hint: 'Pengirim email portal. Password disimpan terenkripsi.' },
   session: { label: 'Sesi', hint: 'Masa berlaku sesi login.' },
   portal: { label: 'Umum', hint: 'Identitas dan status portal.' },
+  themes: { label: 'Themes', hint: 'Warna, logo, dan gambar halaman login.' },
 }
 const GROUP_ORDER = Object.keys(GROUPS)
 const TYPE_LABEL: Record<ValueType, string> = { text: 'Teks', number: 'Angka', boolean: 'Boolean', secret: 'Rahasia' }
@@ -164,10 +166,10 @@ async function save() {
         ...(p.isSystem
           ? {}
           : {
-              options: p.valueType === 'text' && parsedOptions.value.length ? parsedOptions.value : null,
-              numMin: p.valueType === 'number' ? num(form.numMin) : null,
-              numMax: p.valueType === 'number' ? num(form.numMax) : null,
-            }),
+            options: p.valueType === 'text' && parsedOptions.value.length ? parsedOptions.value : null,
+            numMin: p.valueType === 'number' ? num(form.numMin) : null,
+            numMax: p.valueType === 'number' ? num(form.numMax) : null,
+          }),
       })
     } else {
       await api.post('/api/parameters', {
@@ -225,7 +227,8 @@ async function confirmDelete() {
       <h1>Pengaturan Portal</h1>
       <p>Atur ketentuan portal. Nilai disimpan di tabel parameter.</p>
     </div>
-    <button v-if="auth.can('portal', 'create')" class="btn btn-primary" @click="openCreate">
+    <!-- <button v-if="auth.can('portal', 'create')" class="btn btn-primary" @click="openCreate"> -->
+    <button v-if="auth.can('portal', 'create') && active !== 'themes'" class="btn btn-primary" @click="openCreate">
       Tambah parameter
     </button>
   </div>
@@ -234,71 +237,68 @@ async function confirmDelete() {
 
   <section class="panel panel-flush">
     <div class="tabs" role="tablist" aria-label="Kelompok pengaturan" @keydown="onTabKey">
-      <button
-        v-for="t in tabs"
-        :id="`tab-${t}`"
-        :key="t"
-        type="button"
-        role="tab"
-        class="tab"
-        :aria-selected="t === active"
-        :tabindex="t === active ? 0 : -1"
-        @click="active = t"
-      >
+      <button v-for="t in tabs" :id="`tab-${t}`" :key="t" type="button" role="tab" class="tab"
+        :aria-selected="t === active" :tabindex="t === active ? 0 : -1" @click="active = t">
         {{ labelOf(t) }}
       </button>
     </div>
-    <p v-if="GROUPS[active]" class="muted tab-hint">{{ GROUPS[active].hint }}</p>
+    <ThemeTab v-if="active === 'themes'" />
+    <template v-else>
+      <p v-if="GROUPS[active]" class="muted tab-hint">{{ GROUPS[active].hint }}</p>
 
-    <div class="table-wrap" role="tabpanel" :aria-labelledby="`tab-${active}`">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Parameter</th>
-            <th>Nilai</th>
-            <th>Deskripsi</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading"><td colspan="4" class="muted">Memuat...</td></tr>
-          <tr v-else-if="rows.length === 0"><td colspan="4" class="muted">Belum ada parameter.</td></tr>
-          <tr v-for="p in rows" :key="p.id">
-            <td>
-              <div class="cell-title">
-                {{ p.key }}
-                <span v-if="p.isSystem" class="chip">Sistem</span>
-              </div>
-              <div class="muted cell-sub">{{ TYPE_LABEL[p.valueType] }}</div>
-            </td>
-            <td>
-              <template v-if="p.valueType === 'secret'">
-                <span v-if="p.hasValue">••••••••</span>
-                <span v-else class="muted">Belum diisi</span>
-              </template>
-              <span v-else-if="p.valueType === 'boolean'" class="badge" :class="p.value === 'true' ? 'badge-ok' : 'badge-off'">
-                {{ p.value === 'true' ? 'Ya' : 'Tidak' }}
-              </span>
-              <template v-else>
-                <span v-if="p.value !== ''">{{ p.value }}</span>
-                <span v-else class="muted">Kosong</span>
-              </template>
-            </td>
-            <td>{{ p.description || '-' }}</td>
-            <td class="cell-actions">
-              <button v-if="auth.can('portal', 'update')" class="btn btn-ghost btn-sm" @click="openEdit(p)">Ubah</button>
-              <button
-                v-if="auth.can('portal', 'delete') && !p.isSystem"
-                class="btn btn-ghost btn-sm btn-text-danger"
-                @click="askDelete(p)"
-              >
-                Hapus
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <div class="table-wrap" role="tabpanel" :aria-labelledby="`tab-${active}`">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Nilai</th>
+              <th>Deskripsi</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="4" class="muted">Memuat...</td>
+            </tr>
+            <tr v-else-if="rows.length === 0">
+              <td colspan="4" class="muted">Belum ada parameter.</td>
+            </tr>
+            <tr v-for="p in rows" :key="p.id">
+              <td>
+                <div class="cell-title">
+                  {{ p.key }}
+                  <span v-if="p.isSystem" class="chip">Sistem</span>
+                </div>
+                <div class="muted cell-sub">{{ TYPE_LABEL[p.valueType] }}</div>
+              </td>
+              <td>
+                <template v-if="p.valueType === 'secret'">
+                  <span v-if="p.hasValue">••••••••</span>
+                  <span v-else class="muted">Belum diisi</span>
+                </template>
+                <span v-else-if="p.valueType === 'boolean'" class="badge"
+                  :class="p.value === 'true' ? 'badge-ok' : 'badge-off'">
+                  {{ p.value === 'true' ? 'Ya' : 'Tidak' }}
+                </span>
+                <template v-else>
+                  <span v-if="p.value !== ''">{{ p.value }}</span>
+                  <span v-else class="muted">Kosong</span>
+                </template>
+              </td>
+              <td>{{ p.description || '-' }}</td>
+              <td class="cell-actions">
+                <button v-if="auth.can('portal', 'update')" class="btn btn-ghost btn-sm"
+                  @click="openEdit(p)">Ubah</button>
+                <button v-if="auth.can('portal', 'delete') && !p.isSystem" class="btn btn-ghost btn-sm btn-text-danger"
+                  @click="askDelete(p)">
+                  Hapus
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
   </section>
 
   <!-- Form tambah / ubah -->
@@ -309,12 +309,16 @@ async function confirmDelete() {
       <div class="form-grid">
         <div class="field">
           <label for="pa-group">Group</label>
-          <input id="pa-group" v-model="form.groupCode" class="input" list="param-groups" :disabled="!!editing" autocomplete="off" placeholder="smtp" />
-          <datalist id="param-groups"><option v-for="t in tabs" :key="t" :value="t" /></datalist>
+          <input id="pa-group" v-model="form.groupCode" class="input" list="param-groups" :disabled="!!editing"
+            autocomplete="off" placeholder="smtp" />
+          <datalist id="param-groups">
+            <option v-for="t in tabs" :key="t" :value="t" />
+          </datalist>
         </div>
         <div class="field">
           <label for="pa-key">Key</label>
-          <input id="pa-key" v-model="form.key" class="input" :disabled="!!editing" autocomplete="off" placeholder="nama_parameter" />
+          <input id="pa-key" v-model="form.key" class="input" :disabled="!!editing" autocomplete="off"
+            placeholder="nama_parameter" />
         </div>
       </div>
 
@@ -352,16 +356,10 @@ async function confirmDelete() {
         <select v-else-if="optionList" id="pa-value" v-model="form.value" class="input">
           <option v-for="o in optionList" :key="o" :value="o">{{ o }}</option>
         </select>
-        <input
-          v-else-if="form.valueType === 'secret'"
-          id="pa-value" v-model="form.value" type="password" class="input" autocomplete="new-password"
-          :placeholder="editing?.hasValue ? 'Kosongkan jika tidak diganti' : ''"
-        />
-        <input
-          v-else
-          id="pa-value" v-model="form.value" class="input" autocomplete="off"
-          :inputmode="form.valueType === 'number' ? 'numeric' : undefined"
-        />
+        <input v-else-if="form.valueType === 'secret'" id="pa-value" v-model="form.value" type="password" class="input"
+          autocomplete="new-password" :placeholder="editing?.hasValue ? 'Kosongkan jika tidak diganti' : ''" />
+        <input v-else id="pa-value" v-model="form.value" class="input" autocomplete="off"
+          :inputmode="form.valueType === 'number' ? 'numeric' : undefined" />
       </div>
       <label v-if="editing?.valueType === 'secret' && editing.hasValue" class="check">
         <input v-model="form.clearSecret" type="checkbox" />

@@ -97,12 +97,16 @@ parametersRouter.put('/:id', requirePermission('portal', 'update'), async (req, 
     const id = idParam(String(req.params.id))
     await withTx(async (c) => {
       const cur = await c.query(
-        `SELECT is_system, value_type, value, options, num_min, num_max
-           FROM portal.parameters WHERE id = $1 FOR UPDATE`,
+        // `SELECT is_system, value_type, value, options, num_min, num_max
+        //    FROM portal.parameters WHERE id = $1 FOR UPDATE`,
+        `SELECT group_code, param_key, is_system, value_type, value, options, num_min, num_max FROM portal.parameters WHERE id = $1 FOR UPDATE`,
         [id],
       )
       const row = cur.rows[0]
       if (!row) throw new HttpError(404, 'Parameter tidak ditemukan')
+      if (row.group_code === 'themes' && String(row.param_key).endsWith('_url')) {
+  throw new HttpError(400, 'Gambar hanya bisa diubah lewat tab Themes')
+}
       const d = p.data
 
       let value: string = row.value

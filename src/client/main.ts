@@ -9,6 +9,7 @@ import { useAuthStore } from './stores/auth'
 import { usePortalStore } from './stores/portal'
 
 import { disconnectSocket } from './lib/socket'
+import { loadTheme } from '@/theme'
 // pinia harus dipasang sebelum router, karena guard memakai store
 const pinia = createPinia()
 const app = createApp(App).use(pinia).use(router)
@@ -29,4 +30,5 @@ setUnauthorizedHandler(() => {
 })
 
 void usePortalStore().load()
-app.mount('#app')
+// app.mount('#app')
+loadTheme().finally(() => app.mount('#app'))

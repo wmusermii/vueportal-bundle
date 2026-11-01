@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { usePortalStore } from '@/stores/portal'
+import { theme } from '@/theme'
 const portal = usePortalStore()
 const auth = useAuthStore()
 const router = useRouter()
@@ -35,9 +36,15 @@ async function submit() {
 <template>
   <div class="login">
     <aside class="login-aside">
-      <div class="brand"><span class="brand-mark">{{ portal.initial }}</span>{{ portal.name }}</div>
-      <p class="login-tagline">Simple Administrator Themes By Vue 3.5 & Express.</p>
-    </aside>
+  <div class="brand">
+    <img v-if="theme.logo_url" class="brand-logo" :src="theme.logo_url" alt="" />
+    <span v-else class="brand-mark">{{ portal.initial }}</span>{{ portal.name }}
+  </div>
+  <div v-if="theme.login_image_url" class="login-art">
+    <img :src="theme.login_image_url" alt="" />
+  </div>
+  <p class="login-tagline">Simple Administrator Themes By Vue 3.5 & Express.</p>
+</aside>
     <section class="login-main">
       <form class="login-form" @submit.prevent="submit">
         <h1>Masuk</h1>
