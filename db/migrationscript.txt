@@ -6,3 +6,22 @@ node -p "require('crypto').randomBytes(48).toString('hex')"
 
 //====== INI SCRIPT MENCIPTAKAN PARAM_ENC_KEY
 node -p "require('crypto').randomBytes(32).toString('hex')" 
+
+
+//===== MEMBUAT DUMP DATABASE TERAKHIR =========
+docker exec postgreSQL_RUN pg_dump -U komibank -d komibank -n portal -s --no-owner --no-privileges > 01_raw.sql
+//------- UNTUK SEED DATA --------------------
+docker exec postgreSQL_RUN pg_dump -U komibank -d komibank --data-only --column-inserts --disable-triggers --no-owner --no-privileges -t portal.groups -t portal.menus -t portal.group_menu_permissions -t portal.parameters > 02_raw.sql
+
+//============= CARA MIGRASI KE DATABASE BARU ================
+  psql -h HOST -p 5432 -U USER -d NAMA_DB -v ON_ERROR_STOP=1 -f komibank_portal_install.sql
+
+//---------------------------DENGAN DOCKER --------------------------
+//--- MEMBUAT DB BARY DENGAN USERNYA
+docker exec postgreSQL_RUN psql -U komibank -d postgres -v ON_ERROR_STOP=1 -c "CREATE USER wmsarnad WITH LOGIN PASSWORD 'GANTI_PASSWORD_BARU'" -c "CREATE DATABASE wmsarnad WITH OWNER = wmsarnad ENCODING = 'UTF8'"
+
+docker exec postgreSQL_RUN psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE USER wmsarnad WITH LOGIN PASSWORD 'AryaAditya1979'" -c "CREATE DATABASE wmsarnad WITH OWNER = wmsarnad ENCODING = 'UTF8'"
+
+//--- SALIN FILE HASIL DUMP KE DOCKER
+docker cp portal_install.sql postgreSQL_RUN:/tmp/portal_install.sql
+docker exec postgreSQL_RUN psql -U wmsarnad -d wmsarnad -v ON_ERROR_STOP=1 -f /tmp/portal_install.sql
