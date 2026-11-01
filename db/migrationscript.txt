@@ -23,3 +23,56 @@ docker exec postgreSQL_RUN psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "C
 //--- SALIN FILE HASIL DUMP KE DOCKER
 docker cp portal_install.sql postgreSQL_RUN:/tmp/portal_install.sql
 docker exec postgreSQL_RUN psql -U wmsarnad -d wmsarnad -v ON_ERROR_STOP=1 -f /tmp/portal_install.sql
+
+
+//=========== URUTAN MENGGUNAKAN PROJECT INI====
+
+clone https://github.com/wmusermii/vueportal-bundle.git
+
+1. Tes koneksi dan hak akses (VPN aktif)
+   psql -h HOST -p 5432 -U USER -d NAMA_DB -c "\dn"
+   Daftar schema harus tampil, dan tidak boleh ada portal. Kalau portal sudah ada, berarti database sudah pernah dipasang atau berisi data lain, jadi berhenti dulu dan jangan lanjut.
+   Jalankan juga tes hak buat objek:
+   psql -h HOST -p 5432 -U USER -d NAMA_DB -c "CREATE SCHEMA _cek; DROP SCHEMA _cek;"
+   Kalau berhasil, hak CREATE Anda cukup. Kalau permission denied, minta DBA menjalankan GRANT CREATE ON DATABASE NAMA_DB TO USER;
+
+2. Jalankan migrasi (pilih satu)
+   psql -h HOST -p 5432 -U USER -d NAMA_DB -v ON_ERROR_STOP=1 -f db/portal_install.sql
+   Kalau CREATE EXTENSION pgcrypto ditolak, minta DBA menjalankannya sekali di database itu: CREATE EXTENSION IF NOT EXISTS pgcrypto;. Setelah itu ulangi langkah 2.
+
+
+//=======================BUILD dan Deploy MANUAL
+npm run build
+tar -czf portal.tar.gz dist package.json package-lock.json ecosystem.config.js
+scp portal.tar.gz USER@IP_SERVER:/opt/portal/
+scp juga ada di PowerShell dan cmd Windows. Kalau tidak ada, pakai WinSCP atau FileZilla.
+
+//========================Siapkan server (sekali saja)
+nvm use <versi>
+Pasang pm2 global: npm i -g pm2
+
+//========================Pasang di server
+cd /opt/portal (Folder umpama)
+tar -xzf portal.tar.gz
+npm ci --omit=dev
+npm ci --omit=dev memasang dependency produksi sesuai package-lock.json. Kalau server tidak punya internet, build dulu di mesin dengan OS yang sama lalu kirim node_modules juga, karena paket native seperti bcrypt tidak bisa dipindah antar OS.
+
+//========================Uji dan jalankan
+node dist/server/index.js      # SESUAIKAN; harus jalan tanpa error, hentikan dengan Ctrl+C
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup                    # jalankan perintah yang ditampilkan agar hidup lagi setelah reboot
+pm2 logs portal
+
+Browser http://IP_SERVER:3000
+
+Kalau halaman tidak terbuka:
+
+Firewall: port harus dibuka, misalnya sudo ufw allow 3000/tcp.
+Port 80 tanpa Nginx: Node biasa tidak boleh memakai port di bawah 1024. Pakai port tinggi seperti 3000, atau ke depannya arahkan 80 ke 3000 dengan aturan iptables.
+Login berhasil tapi langsung keluar: itu masalah cookie. Pastikan COOKIE_SECURE=false kalau Anda mengakses lewat http://.
+
+
+
+
+
