@@ -27,7 +27,7 @@ export async function resolveSession(token: string | undefined | null): Promise<
     }
 
     const { rows } = await pool.query(
-      `SELECT id, username, full_name FROM portal.users WHERE id = $1 AND status = 'active'`,
+      `SELECT id, username, full_name FROM users WHERE id = $1 AND status = 'active'`,
       [payload.sub],
     )
     if (!rows[0]) return { ok: false, message: 'Sesi tidak valid' }

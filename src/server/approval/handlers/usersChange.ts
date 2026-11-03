@@ -13,7 +13,7 @@ export const usersChange = makeChangeHandler({
     if (action === 'create') {
       try {
         await db.query(
-          `INSERT INTO portal.users (username, email, full_name, password_hash, status)
+          `INSERT INTO users (username, email, full_name, password_hash, status)
            VALUES ($1, $2, $3, $4, $5)`,
           [record.username, record.email, record.fullName, record.passwordHash, record.status],
         )
@@ -27,11 +27,11 @@ export const usersChange = makeChangeHandler({
     }
 
     if (!targetId) throw new ApprovalError(500, 'Pengajuan tidak memiliki target')
-    const found = await db.query('SELECT 1 FROM portal.users WHERE id = $1 FOR UPDATE', [targetId])
+    const found = await db.query('SELECT 1 FROM users WHERE id = $1 FOR UPDATE', [targetId])
     if (found.rowCount === 0) throw new ApprovalError(409, 'User sudah tidak ada. Tolak pengajuan ini.')
     // akun admin tidak dikelola dari halaman Pengguna (sama seperti assertManageable di route)
     const sys = await db.query(
-      `SELECT EXISTS (SELECT 1 FROM portal.user_groups ug JOIN portal.groups g ON g.id = ug.group_id
+      `SELECT EXISTS (SELECT 1 FROM user_groups ug JOIN groups g ON g.id = ug.group_id
                        WHERE ug.user_id = $1 AND g.is_system) AS yes`,
       [targetId],
     )
@@ -42,7 +42,7 @@ export const usersChange = makeChangeHandler({
     if (action === 'update') {
       try {
         await db.query(
-          `UPDATE portal.users
+          `UPDATE users
               SET email = $2, full_name = $3, status = $4,
                   password_hash = COALESCE($5, password_hash)
             WHERE id = $1`,
@@ -56,7 +56,7 @@ export const usersChange = makeChangeHandler({
     }
 
     try {
-      await db.query('DELETE FROM portal.users WHERE id = $1', [targetId])
+      await db.query('DELETE FROM users WHERE id = $1', [targetId])
     } catch (e: any) {
       if (e?.code === '23503') {
         throw new ApprovalError(409, 'User tidak dapat dihapus karena masih dipakai data lain. Tolak pengajuan ini.')

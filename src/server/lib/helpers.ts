@@ -110,8 +110,8 @@ export async function withTx<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
 export async function isSystemMember(c: PoolClient, userId: string) {
   const { rows } = await c.query(
     `SELECT EXISTS (
-       SELECT 1 FROM portal.user_groups ug
-         JOIN portal.groups g ON g.id = ug.group_id
+       SELECT 1 FROM user_groups ug
+         JOIN groups g ON g.id = ug.group_id
         WHERE ug.user_id = $1 AND g.is_system
      ) AS yes`,
     [userId],
@@ -122,8 +122,8 @@ export async function isSystemMember(c: PoolClient, userId: string) {
 export async function isSystemUser(userId: string) {
   const { rows } = await pool.query(
     `SELECT EXISTS (
-       SELECT 1 FROM portal.user_groups ug
-         JOIN portal.groups g ON g.id = ug.group_id
+       SELECT 1 FROM user_groups ug
+         JOIN groups g ON g.id = ug.group_id
         WHERE ug.user_id = $1 AND g.is_system
      ) AS yes`,
     [userId],

@@ -39,16 +39,16 @@ async function failureState(scope: 'ip' | 'username', value: string, s: LoginSec
     scope === 'ip'
       ? `SELECT count(*)::int AS fails,
                 COALESCE(ceil(extract(epoch FROM (max(created_at) + make_interval(mins => $3) - now()))), 0)::int AS retry_sec
-           FROM portal.login_attempts
+           FROM login_attempts
           WHERE NOT success AND ip = $1
             AND created_at > now() - make_interval(mins => $2)`
       : `SELECT count(*)::int AS fails,
                 COALESCE(ceil(extract(epoch FROM (max(a.created_at) + make_interval(mins => $3) - now()))), 0)::int AS retry_sec
-           FROM portal.login_attempts a
+           FROM login_attempts a
           WHERE NOT a.success AND a.username = $1
             AND a.created_at > now() - make_interval(mins => $2)
             AND a.created_at > COALESCE(
-                  (SELECT max(x.created_at) FROM portal.login_attempts x WHERE x.success AND x.username = $1),
+                  (SELECT max(x.created_at) FROM login_attempts x WHERE x.success AND x.username = $1),
                   '-infinity'::timestamptz)`
   const { rows } = await pool.query(sql, [value, s.windowMin, s.blockMin])
   return rows[0] as { fails: number; retry_sec: number }
@@ -68,7 +68,7 @@ export async function checkLoginBlock(username: string, ip: string, s: LoginSecu
 }
 
 export async function recordLoginAttempt(username: string, ip: string, success: boolean) {
-  await pool.query('INSERT INTO portal.login_attempts (username, ip, success) VALUES ($1, $2, $3)', [
+  await pool.query('INSERT INTO login_attempts (username, ip, success) VALUES ($1, $2, $3)', [
     username,
     ip,
     success,
@@ -79,7 +79,7 @@ export async function recordLoginAttempt(username: string, ip: string, success: 
 export function startLoginAttemptCleanup() {
   const run = () =>
     pool
-      .query(`DELETE FROM portal.login_attempts WHERE created_at < now() - interval '30 days'`)
+      .query(`DELETE FROM login_attempts WHERE created_at < now() - interval '30 days'`)
       .catch((e) => console.error('Pembersihan login_attempts gagal:', e.message))
   run()
   setInterval(run, 60 * 60 * 1000).unref()

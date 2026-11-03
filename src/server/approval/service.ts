@@ -61,8 +61,8 @@ export async function getActor(db: Db, userId: string) {
   const {
     rows: [g],
   } = await db.query<{ code: string }>(
-    `SELECT g.code FROM portal.user_groups ug
-       JOIN portal.groups g ON g.id = ug.group_id AND g.status = 'active'
+    `SELECT g.code FROM user_groups ug
+       JOIN groups g ON g.id = ug.group_id AND g.status = 'active'
       WHERE ug.user_id = $1`,
     [userId],
   );
@@ -72,16 +72,16 @@ export async function getActor(db: Db, userId: string) {
 
 // Penugasan `a` berlaku untuk user $1: ditugaskan langsung, atau lewat group aktifnya
 const ASSIGNED = `(a.user_id = $1 OR a.group_id IN (
-  SELECT ug.group_id FROM portal.user_groups ug
-    JOIN portal.groups g ON g.id = ug.group_id AND g.status = 'active'
+  SELECT ug.group_id FROM user_groups ug
+    JOIN groups g ON g.id = ug.group_id AND g.status = 'active'
    WHERE ug.user_id = $1))`;
 
 // Pengajuan `r` menunggu keputusan user $1 pada tahap sekarang ($2 = user adalah Administrator)
 const DECIDABLE = `(r.status = 'pending'
   AND r.requested_by IS DISTINCT FROM $1
-  AND NOT EXISTS (SELECT 1 FROM portal.approval_steps s WHERE s.request_id = r.id AND s.acted_by = $1)
+  AND NOT EXISTS (SELECT 1 FROM approval_steps s WHERE s.request_id = r.id AND s.acted_by = $1)
   AND ($2::bool OR EXISTS (
-        SELECT 1 FROM portal.approval_assignments a
+        SELECT 1 FROM approval_assignments a
          WHERE a.type_id = r.type_id AND a.role = 'approver' AND a.level = r.current_level AND ${ASSIGNED})))`;
 
 /** Buat pengajuan. requestedBy = null untuk pengaju publik (belum login). */
@@ -97,7 +97,7 @@ export async function createRequest(
   const {
     rows: [type],
   } = await pool.query<{ id: string; is_public: boolean }>(
-    `SELECT id, is_public FROM portal.approval_types WHERE code = $1 AND status = 'active'`,
+    `SELECT id, is_public FROM approval_types WHERE code = $1 AND status = 'active'`,
     [code],
   );
   if (!type) throw new ApprovalError(404, "Jenis approval tidak aktif");
@@ -111,7 +111,7 @@ export async function createRequest(
       const {
         rows: [ok],
       } = await pool.query(
-        `SELECT 1 FROM portal.approval_assignments a
+        `SELECT 1 FROM approval_assignments a
           WHERE a.type_id = $2 AND a.role = 'editor' AND ${ASSIGNED} LIMIT 1`,
         [requestedBy, type.id],
       );
@@ -126,7 +126,7 @@ export async function createRequest(
   const {
     rows: [lv],
   } = await pool.query<{ n: number | null }>(
-    `SELECT max(level)::int AS n FROM portal.approval_assignments WHERE type_id = $1 AND role = 'approver'`,
+    `SELECT max(level)::int AS n FROM approval_assignments WHERE type_id = $1 AND role = 'approver'`,
     [type.id],
   );
   if (!lv?.n)
@@ -140,7 +140,7 @@ export async function createRequest(
     const {
       rows: [row],
     } = await pool.query<{ id: string }>(
-      `INSERT INTO portal.approval_requests (type_id, subject, unique_key, payload, requested_by, total_levels)
+      `INSERT INTO approval_requests (type_id, subject, unique_key, payload, requested_by, total_levels)
        VALUES ($1, $2, $3, $4::jsonb, $5, $6) RETURNING id`,
       [
         type.id,
@@ -180,12 +180,12 @@ export async function listRequests(userId: string, status?: string) {
             COALESCE((SELECT json_agg(json_build_object(
                         'level', s.level, 'action', s.action, 'by', u.full_name,
                         'at', s.acted_at, 'note', s.note, 'override', s.is_override, 'data', s.data) ORDER BY s.level)
-                        FROM portal.approval_steps s JOIN portal.users u ON u.id = s.acted_by
+                        FROM approval_steps s JOIN users u ON u.id = s.acted_by
                        WHERE s.request_id = r.id), '[]'::json) AS steps
-       FROM portal.approval_requests r
-       JOIN portal.approval_types t ON t.id = r.type_id
+       FROM approval_requests r
+       JOIN approval_types t ON t.id = r.type_id
       WHERE ($2::bool OR r.requested_by = $1 OR EXISTS (
-              SELECT 1 FROM portal.approval_assignments a
+              SELECT 1 FROM approval_assignments a
                WHERE a.type_id = r.type_id AND a.role = 'approver' AND ${ASSIGNED}))
         AND ($3::text IS NULL OR r.status::text = $3)
       ORDER BY (r.status = 'pending') DESC, r.created_at DESC
@@ -216,7 +216,7 @@ export async function countPending(userId: string) {
   const {
     rows: [row],
   } = await pool.query<{ n: number }>(
-    `SELECT count(*)::int AS n FROM portal.approval_requests r WHERE ${DECIDABLE}`,
+    `SELECT count(*)::int AS n FROM approval_requests r WHERE ${DECIDABLE}`,
     [userId, actor.isAdmin],
   );
   return row.n;
@@ -226,11 +226,11 @@ export async function countPending(userId: string) {
 export async function groupOptions(userId: string) {
   const actor = await getActor(pool, userId);
   const { rows } = await pool.query<{ id: string; code: string; name: string }>(
-    `SELECT g.id, g.code, g."name" FROM portal.groups g
+    `SELECT g.id, g.code, g."name" FROM groups g
       WHERE g.status = 'active'
         AND ($2::bool OR g.code <> 'ADMIN')
         AND ($2::bool OR EXISTS (
-              SELECT 1 FROM portal.approval_assignments a WHERE a.role = 'approver' AND ${ASSIGNED}))
+              SELECT 1 FROM approval_assignments a WHERE a.role = 'approver' AND ${ASSIGNED}))
       ORDER BY g."name"`,
     [userId, actor.isAdmin],
   );
@@ -260,8 +260,8 @@ export async function decide(
     } = await client.query<ApprovalRow>(
       `SELECT r.id, r.type_id, r.status, r.subject, r.payload, r.requested_by,
               r.current_level, r.total_levels, t.code AS type_code
-         FROM portal.approval_requests r
-         JOIN portal.approval_types t ON t.id = r.type_id
+         FROM approval_requests r
+         JOIN approval_types t ON t.id = r.type_id
         WHERE r.id = $1
           FOR UPDATE OF r`,
       [id],
@@ -277,7 +277,7 @@ export async function decide(
     const {
       rows: [acted],
     } = await client.query(
-      `SELECT 1 FROM portal.approval_steps WHERE request_id = $1 AND acted_by = $2`,
+      `SELECT 1 FROM approval_steps WHERE request_id = $1 AND acted_by = $2`,
       [id, userId],
     );
     if (acted)
@@ -290,7 +290,7 @@ export async function decide(
       const {
         rows: [ok],
       } = await client.query(
-        `SELECT 1 FROM portal.approval_assignments a
+        `SELECT 1 FROM approval_assignments a
           WHERE a.type_id = $2 AND a.role = 'approver' AND a.level = $3 AND ${ASSIGNED} LIMIT 1`,
         [userId, r.type_id, r.current_level],
       );
@@ -304,12 +304,12 @@ export async function decide(
     // ---- tolak: langsung berakhir di tahap mana pun
     if (action === "reject") {
       await client.query(
-        `INSERT INTO portal.approval_steps (request_id, level, action, acted_by, note)
+        `INSERT INTO approval_steps (request_id, level, action, acted_by, note)
          VALUES ($1, $2, 'rejected', $3, $4)`,
         [id, r.current_level, userId, note],
       );
       await client.query(
-        `UPDATE portal.approval_requests
+        `UPDATE approval_requests
             SET status = 'rejected', decided_by = $2, decided_at = now(), note = $3, updated_at = now()
           WHERE id = $1`,
         [id, userId, note],
@@ -329,7 +329,7 @@ export async function decide(
     // Administrator langsung final (melewati sisa tahap); selain itu final hanya di tahap terakhir
     const final = actor.isAdmin || r.current_level >= r.total_levels;
     await client.query(
-      `INSERT INTO portal.approval_steps (request_id, level, action, acted_by, note, data, is_override)
+      `INSERT INTO approval_steps (request_id, level, action, acted_by, note, data, is_override)
        VALUES ($1, $2, 'approved', $3, $4, $5::jsonb, $6)`,
       [
         id,
@@ -343,7 +343,7 @@ export async function decide(
 
     if (!final) {
       await client.query(
-        `UPDATE portal.approval_requests SET current_level = current_level + 1, updated_at = now() WHERE id = $1`,
+        `UPDATE approval_requests SET current_level = current_level + 1, updated_at = now() WHERE id = $1`,
         [id],
       );
       await client.query("COMMIT");
@@ -351,7 +351,7 @@ export async function decide(
     }
 
     const { rows: steps } = await client.query<{ data: Json | null }>(
-      `SELECT data FROM portal.approval_steps WHERE request_id = $1 ORDER BY level`,
+      `SELECT data FROM approval_steps WHERE request_id = $1 ORDER BY level`,
       [id],
     );
     const decision: Json = Object.assign({}, ...steps.map((s) => s.data ?? {}));
@@ -365,7 +365,7 @@ export async function decide(
     });
 
     await client.query(
-      `UPDATE portal.approval_requests
+      `UPDATE approval_requests
           SET status = 'approved', decision = $3::jsonb, decided_by = $2, decided_at = now(),
               note = $4, updated_at = now()
         WHERE id = $1`,

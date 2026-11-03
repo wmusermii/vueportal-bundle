@@ -21,7 +21,7 @@ import {
  *
  *  Yang dibutuhkan untuk halaman baru "Foo" (kode menu 'foo'):
  *   1. DATABASE   Tambah jenis approval:
- *                   INSERT INTO portal.approval_types (code, "name") VALUES ('FOO_CHANGE', 'Perubahan Foo');
+ *                   INSERT INTO approval_types (code, "name") VALUES ('FOO_CHANGE', 'Perubahan Foo');
  *                 dan minimal satu approver level 1 (atau lewat halaman Pengaturan Approval).
  *   2. HANDLER    approval/handlers/fooChange.ts:
  *                   export const fooChange = makeChangeHandler({ code: 'FOO_CHANGE', apply: ... })
@@ -66,10 +66,10 @@ export async function needsApproval(
     rows: [r],
   } = await pool.query<{ needs_approval: boolean }>(
     `SELECT p.needs_approval
-       FROM portal.user_groups ug
-       JOIN portal.groups g ON g.id = ug.group_id AND g.status = 'active'
-       JOIN portal.group_menu_permissions p ON p.group_id = g.id
-       JOIN portal.menus m ON m.id = p.menu_id AND m.status = 'active'
+       FROM user_groups ug
+       JOIN groups g ON g.id = ug.group_id AND g.status = 'active'
+       JOIN group_menu_permissions p ON p.group_id = g.id
+       JOIN menus m ON m.id = p.menu_id AND m.status = 'active'
       WHERE ug.user_id = $1 AND m.code = $2`,
     [userId, menuCode],
   );

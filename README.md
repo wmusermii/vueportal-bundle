@@ -18,7 +18,7 @@ Aplikasi web dengan **frontend Vue 3** dan **backend Express (TypeScript)** dala
 |----------|----------------------------------------|
 | Frontend | Vue 3, Vue Router, Pinia, Vite         |
 | Backend  | Node.js, Express, TypeScript, Socket.IO |
-| Database | PostgreSQL (database `komibank`, schema `portal`) |
+| Database | PostgreSQL (database `komibank`, schema dari `DB_SCHEMA` di `.env`, bawaan `portal`) |
 | Produksi | Node + pm2 (tanpa Nginx)               |
 
 ## Struktur Folder  <!-- SESUAIKAN -->
@@ -72,6 +72,26 @@ Pastikan database sudah ada (mis. `komibank`) dan user Anda boleh `CREATE SCHEMA
 |------|-----|
 | `db/01_newinstallation.sql` | Schema `portal`, enum, tabel, constraint, trigger |
 | `db/02_newseeds.sql` | Group ADMIN/MANAGER/STAFF, menu bawaan, izin, user `admin` |
+
+**Nama schema dari `.env` (`DB_SCHEMA`)**
+
+Nama schema tidak ditulis di kode. Atur di `.env`:
+
+```env
+DB_SCHEMA=portal      # ganti bila ingin schema lain, mis. DB_SCHEMA=erp_admin
+```
+
+- Server memasang `search_path` ke `DB_SCHEMA` pada setiap koneksi, jadi query hanya menulis nama tabel (`FROM users`).
+- Saat start, server memeriksa schema itu ada. Jika belum, server berhenti dengan pesan yang jelas.
+- File SQL di `db/` tetap ditulis dengan schema `portal`. Untuk schema lain, **jalankan lewat skrip** supaya namanya diganti otomatis:
+
+```bash
+npm run db:install                                   # db/portal_install.sql
+npm run db:install -- db/temps/06_approval_change.sql   # file SQL lain
+npm run db:install -- --print > hasil.sql            # hanya cetak SQL hasil ganti nama
+```
+
+- Jika memakai PgBouncer mode transaction, isi `ignore_startup_parameters = options` di PgBouncer, atau jalankan `ALTER ROLE <user> SET search_path = <DB_SCHEMA>;`.
 
 **Pilihan menjalankan (pilih salah satu):**
 
@@ -178,7 +198,7 @@ pm2 reload portal
 
 1. **Vue**: buat view, tambahkan route di router (path harus sama dengan `menus.path`).
 2. **Backend**: buat endpoint dan lindungi dengan `requirePermission('kode_menu', 'read' | 'create' | 'update' | 'delete')`.
-3. **Database**: daftarkan menu dan beri izin ADMIN. Izin ADMIN terkunci di UI, jadi **wajib lewat SQL**:
+3. **Database**: daftarkan menu dan beri izin ADMIN. Izin ADMIN terkunci di UI, jadi **wajib lewat SQL** (contoh memakai schema `portal`; ganti dengan nilai `DB_SCHEMA` Anda):
 
 ```sql
 INSERT INTO portal.menus (parent_id, code, title, type, path, icon, sort_order, is_system)
@@ -217,10 +237,11 @@ Jangan edit `01_newinstallation.sql` untuk database yang sudah berjalan. Buat fi
 
 | Masalah | Penyebab / solusi |
 |---------|-------------------|
+| `Schema "..." tidak ditemukan` saat start | `DB_SCHEMA` di `.env` tidak sama dengan schema di database; samakan, atau jalankan `npm run db:install` |
 | `ECONNREFUSED` ke database | Cek host/port/`DATABASE_URL`, pastikan PostgreSQL jalan |
 | `permission denied for database` | User belum punya hak `CREATE`; minta `GRANT CREATE ON DATABASE ...` |
 | `permission denied to create extension "pgcrypto"` | Minta DBA, atau buat hash bcrypt dari aplikasi |
-| `schema "portal" already exists` | Database sudah terpasang; gunakan file patch, atau rebuild dengan `DROP SCHEMA portal CASCADE;` (data hilang) |
+| `schema "portal" already exists` (atau nama `DB_SCHEMA` Anda) | Database sudah terpasang; gunakan file patch, atau rebuild dengan `DROP SCHEMA portal CASCADE;` (data hilang) |
 | Login berhasil tapi langsung 401 | Cookie `secure` aktif di HTTP; set `COOKIE_SECURE=false` bila tidak pakai HTTPS |
 | Refresh halaman → 404 | Pastikan Express punya fallback ke `index.html` untuk route non-`/api` |
 | Setelah reboot aplikasi mati | Jalankan `pm2 save` dan `pm2 startup` |

@@ -6,7 +6,7 @@ const TTL_MS = 30_000
 
 async function all(): Promise<Map<string, string>> {
   if (cache && Date.now() - loadedAt < TTL_MS) return cache
-  const { rows } = await pool.query('SELECT group_code, param_key, value FROM portal.parameters')
+  const { rows } = await pool.query('SELECT group_code, param_key, value FROM parameters')
   cache = new Map(rows.map((r) => [`${r.group_code}.${r.param_key}`, r.value as string]))
   loadedAt = Date.now()
   return cache

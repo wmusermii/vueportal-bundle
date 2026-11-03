@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
 import express from 'express'
-import { pool } from './connector/db'
+import { assertSchema, pool } from './connector/db'
 // import { Server } from 'socket.io'
 import { setupSocket } from './socket'
 import cookieParser from 'cookie-parser'
@@ -78,5 +78,13 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ message: 'Terjadi kesalahan pada server' })
 })
 const PORT = Number(process.env.PORT ?? 3000)
-startLoginAttemptCleanup()
-server.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`))
+// pastikan schema (DB_SCHEMA) ada sebelum menerima request
+assertSchema()
+  .then(() => {
+    startLoginAttemptCleanup()
+    server.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`))
+  })
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  })

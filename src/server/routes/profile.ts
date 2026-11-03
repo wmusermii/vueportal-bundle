@@ -35,9 +35,9 @@ profileRouter.get('/', async (req, res) => {
                 FILTER (WHERE g.id IS NOT NULL),
               '[]'
             ) AS groups
-       FROM portal.users u
-       LEFT JOIN portal.user_groups ug ON ug.user_id = u.id
-       LEFT JOIN portal.groups g ON g.id = ug.group_id
+       FROM users u
+       LEFT JOIN user_groups ug ON ug.user_id = u.id
+       LEFT JOIN groups g ON g.id = ug.group_id
       WHERE u.id = $1
       GROUP BY u.id`,
     [req.user!.id],
@@ -52,7 +52,7 @@ profileRouter.put('/', async (req, res) => {
     return
   }
   try {
-    await pool.query('UPDATE portal.users SET email = $2, full_name = $3 WHERE id = $1', [
+    await pool.query('UPDATE users SET email = $2, full_name = $3 WHERE id = $1', [
       req.user!.id,
       p.data.email,
       p.data.fullName,
@@ -70,7 +70,7 @@ profileRouter.put('/password', passwordLimiter, async (req, res) => {
     return
   }
   try {
-    const { rows } = await pool.query('SELECT password_hash FROM portal.users WHERE id = $1', [req.user!.id])
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user!.id])
     const ok = rows[0] && (await bcrypt.compare(p.data.currentPassword, rows[0].password_hash))
     if (!ok) throw new HttpError(400, 'Password saat ini salah')
     if (p.data.currentPassword === p.data.newPassword) {
@@ -78,7 +78,7 @@ profileRouter.put('/password', passwordLimiter, async (req, res) => {
       throw new HttpError(400, 'Password baru harus berbeda dari password saat ini')
     }
     const hash = await bcrypt.hash(p.data.newPassword, 10)
-    await pool.query('UPDATE portal.users SET password_hash = $2 WHERE id = $1', [req.user!.id, hash])
+    await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [req.user!.id, hash])
     res.json({ ok: true })
   } catch (e) {
     sendError(res, e)

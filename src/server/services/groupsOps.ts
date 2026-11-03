@@ -23,8 +23,8 @@ export type PermInput = {
 async function isSystemMemberDb(db: Db, userId: string) {
   const { rows } = await db.query(
     `SELECT EXISTS (
-       SELECT 1 FROM portal.user_groups ug
-         JOIN portal.groups g ON g.id = ug.group_id
+       SELECT 1 FROM user_groups ug
+         JOIN groups g ON g.id = ug.group_id
         WHERE ug.user_id = $1 AND g.is_system
      ) AS yes`,
     [userId],
@@ -39,9 +39,9 @@ export async function assertCanGrant(db: Db, actorId: string, perms: PermInput[]
     `SELECT p.menu_id::text AS "menuId",
             bool_or(p.can_create) AS "create", bool_or(p.can_read) AS "read",
             bool_or(p.can_update) AS "update", bool_or(p.can_delete) AS "delete"
-       FROM portal.user_groups ug
-       JOIN portal.groups g ON g.id = ug.group_id AND g.status = 'active'
-       JOIN portal.group_menu_permissions p ON p.group_id = g.id
+       FROM user_groups ug
+       JOIN groups g ON g.id = ug.group_id AND g.status = 'active'
+       JOIN group_menu_permissions p ON p.group_id = g.id
       WHERE ug.user_id = $1
       GROUP BY p.menu_id`,
     [actorId],
@@ -74,7 +74,7 @@ export async function resolveFlags(
     const { rows } = await db.query(
       `SELECT menu_id::text AS "menuId",
               (can_create OR can_update OR can_delete) AS write, needs_approval AS needs
-         FROM portal.group_menu_permissions WHERE group_id = $1`,
+         FROM group_menu_permissions WHERE group_id = $1`,
       [groupId],
     )
     prev = new Map(rows.map((r) => [r.menuId, { write: r.write, needs: r.needs }]))
@@ -91,10 +91,10 @@ export async function resolveFlags(
 export async function savePermissions(db: Db, groupId: string, perms: PermInput[]) {
   const unique = [...new Map(perms.map((p) => [p.menuId, p])).values()]
   const active = unique.filter((p) => p.create || p.read || p.update || p.delete)
-  await db.query('DELETE FROM portal.group_menu_permissions WHERE group_id = $1', [groupId])
+  await db.query('DELETE FROM group_menu_permissions WHERE group_id = $1', [groupId])
   if (active.length === 0) return
   await db.query(
-    `INSERT INTO portal.group_menu_permissions
+    `INSERT INTO group_menu_permissions
        (group_id, menu_id, can_create, can_read, can_update, can_delete, needs_approval)
      SELECT $1::bigint, t.menu_id, t.c, t.r, t.u, t.d, t.n
        FROM unnest($2::bigint[], $3::boolean[], $4::boolean[], $5::boolean[], $6::boolean[], $7::boolean[])
@@ -116,7 +116,7 @@ export async function savePermissions(db: Db, groupId: string, perms: PermInput[
  * Mengembalikan siapa yang ditambah / dikeluarkan dan jumlah anggota saat ini.
  */
 export async function planMembers(db: Db, groupId: string, actorId: string, userIds: string[]) {
-  const g = await db.query('SELECT is_system, status FROM portal.groups WHERE id = $1 FOR UPDATE', [groupId])
+  const g = await db.query('SELECT is_system, status FROM groups WHERE id = $1 FOR UPDATE', [groupId])
   if (!g.rows[0]) throw new HttpError(404, 'Group tidak ditemukan')
 
   const actorIsSystem = await isSystemMemberDb(db, actorId)
@@ -125,7 +125,7 @@ export async function planMembers(db: Db, groupId: string, actorId: string, user
   }
 
   const wanted = new Set(userIds)
-  const cur = await db.query('SELECT user_id::text AS id FROM portal.user_groups WHERE group_id = $1', [groupId])
+  const cur = await db.query('SELECT user_id::text AS id FROM user_groups WHERE group_id = $1', [groupId])
   const have = new Set<string>(cur.rows.map((r) => r.id))
   const added = [...wanted].filter((u) => !have.has(u))
   const removed = [...have].filter((u) => !wanted.has(u))
@@ -138,14 +138,14 @@ export async function planMembers(db: Db, groupId: string, actorId: string, user
     if (g.rows[0].status !== 'active') {
       throw new HttpError(400, 'Group nonaktif tidak bisa diberi anggota baru')
     }
-    const ok = await db.query('SELECT count(*)::int AS n FROM portal.users WHERE id = ANY($1::bigint[])', [added])
+    const ok = await db.query('SELECT count(*)::int AS n FROM users WHERE id = ANY($1::bigint[])', [added])
     if (ok.rows[0].n !== added.length) throw new HttpError(400, 'Ada user yang tidak ditemukan')
   }
   if (!actorIsSystem) {
     const adm = await db.query(
       `SELECT EXISTS (
-         SELECT 1 FROM portal.user_groups ug
-           JOIN portal.groups sg ON sg.id = ug.group_id
+         SELECT 1 FROM user_groups ug
+           JOIN groups sg ON sg.id = ug.group_id
           WHERE ug.user_id = ANY($1::bigint[]) AND sg.is_system
        ) AS yes`,
       [[...added, ...removed]],
@@ -158,19 +158,19 @@ export async function planMembers(db: Db, groupId: string, actorId: string, user
 /** Menulis perubahan anggota yang sudah direncanakan oleh planMembers. */
 export async function applyMembers(db: Db, groupId: string, added: string[], removed: string[], assignedBy: string) {
   if (removed.length > 0) {
-    await db.query('DELETE FROM portal.user_groups WHERE group_id = $1 AND user_id = ANY($2::bigint[])', [
+    await db.query('DELETE FROM user_groups WHERE group_id = $1 AND user_id = ANY($2::bigint[])', [
       groupId,
       removed,
     ])
   }
   if (added.length > 0) {
     // satu user hanya boleh punya satu group: lepas dulu dari group lain
-    await db.query('DELETE FROM portal.user_groups WHERE user_id = ANY($1::bigint[]) AND group_id <> $2', [
+    await db.query('DELETE FROM user_groups WHERE user_id = ANY($1::bigint[]) AND group_id <> $2', [
       added,
       groupId,
     ])
     await db.query(
-      `INSERT INTO portal.user_groups (user_id, group_id, assigned_by)
+      `INSERT INTO user_groups (user_id, group_id, assigned_by)
        SELECT u, $1::bigint, $3::bigint FROM unnest($2::bigint[]) AS u
        ON CONFLICT (user_id, group_id) DO NOTHING`,
       [groupId, added, assignedBy],
@@ -181,7 +181,7 @@ export async function applyMembers(db: Db, groupId: string, added: string[], rem
 // ---------- representasi JSON untuk halaman Persetujuan (Record lama / baru) ----------
 
 export async function menuCodeMap(db: Db) {
-  const { rows } = await db.query('SELECT id::text AS id, code FROM portal.menus')
+  const { rows } = await db.query('SELECT id::text AS id, code FROM menus')
   return new Map<string, string>(rows.map((r) => [r.id, r.code]))
 }
 
@@ -203,14 +203,14 @@ export function permsToRecord(perms: PermInput[], codes: Map<string, string>): J
 export async function currentGroupRecord(db: Db, groupId: string) {
   const g = await db.query(
     `SELECT code, name, COALESCE(description, '') AS description, status, is_system AS "isSystem"
-       FROM portal.groups WHERE id = $1`,
+       FROM groups WHERE id = $1`,
     [groupId],
   )
   if (!g.rows[0]) return null
   const p = await db.query(
     `SELECT menu_id::text AS "menuId", can_create AS "create", can_read AS "read",
             can_update AS "update", can_delete AS "delete", needs_approval AS "needsApproval"
-       FROM portal.group_menu_permissions WHERE group_id = $1`,
+       FROM group_menu_permissions WHERE group_id = $1`,
     [groupId],
   )
   const { isSystem, ...rest } = g.rows[0]

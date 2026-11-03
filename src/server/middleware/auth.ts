@@ -44,7 +44,7 @@ declare global {
 //     // user dicek ke DB tiap request: user yang dinonaktifkan langsung tidak bisa masuk
 //     const { rows } = await pool.query(
 //       `SELECT id, username, full_name
-//          FROM portal.users
+//          FROM users
 //         WHERE id = $1 AND status = 'active'`,
 //       [payload.sub],
 //     )

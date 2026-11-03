@@ -7,7 +7,7 @@ async function checkGroup(db: Db, groupId: unknown, approverGroup: string): Prom
   const id = String(groupId ?? '')
   if (!/^\d+$/.test(id)) throw new ApprovalError(400, 'Group untuk user baru wajib dipilih')
   const { rows: [g] } = await db.query(
-    `SELECT id, code FROM portal.groups WHERE id = $1 AND status = 'active'`,
+    `SELECT id, code FROM groups WHERE id = $1 AND status = 'active'`,
     [id],
   )
   if (!g) throw new ApprovalError(400, 'Group tidak valid')
@@ -43,10 +43,10 @@ export const userRegistration: ApprovalHandler = {
     }
 
     const { rows } = await db.query(
-      `SELECT 1 FROM portal.users WHERE username = $1 OR email = $2
+      `SELECT 1 FROM users WHERE username = $1 OR email = $2
        UNION ALL
-       SELECT 1 FROM portal.approval_requests r
-         JOIN portal.approval_types t ON t.id = r.type_id
+       SELECT 1 FROM approval_requests r
+         JOIN approval_types t ON t.id = r.type_id
         WHERE t.code = 'USER_REGISTRATION' AND r.status = 'pending'
           AND (r.unique_key = $1 OR r.payload->>'email' = $2)
        LIMIT 1`,
@@ -77,12 +77,12 @@ export const userRegistration: ApprovalHandler = {
     const p = request.payload
     try {
       const { rows: [u] } = await db.query(
-        `INSERT INTO portal.users (username, email, full_name, password_hash)
+        `INSERT INTO users (username, email, full_name, password_hash)
          VALUES ($1, $2, $3, $4) RETURNING id`,
         [p.username, p.email, p.fullName, p.passwordHash],
       )
       await db.query(
-        `INSERT INTO portal.user_groups (user_id, group_id, assigned_by) VALUES ($1, $2, $3)`,
+        `INSERT INTO user_groups (user_id, group_id, assigned_by) VALUES ($1, $2, $3)`,
         [u.id, groupId, approverId],
       )
     } catch (e: any) {

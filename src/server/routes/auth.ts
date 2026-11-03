@@ -59,7 +59,7 @@ authRouter.post('/login', async (req, res) => {
 
   const { rows } = await pool.query(
     `SELECT id, username, full_name, password_hash
-       FROM portal.users
+       FROM users
       WHERE username = $1 AND status = 'active'`,
     [username],
   )
@@ -87,7 +87,7 @@ authRouter.post('/login', async (req, res) => {
     }
   }
 
-  await pool.query('UPDATE portal.users SET last_login_at = now() WHERE id = $1', [user.id])
+  await pool.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id])
 
   // token berlaku maksimal 30 hari (batas atas parameter); masa berlaku sebenarnya diperiksa di requireAuth
   const hours = await getNumber('session', 'duration_hours', 8)

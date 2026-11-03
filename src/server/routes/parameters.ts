@@ -59,7 +59,7 @@ parametersRouter.get('/', requirePermission('portal', 'read'), async (_req, res)
            (value <> '') AS "hasValue",
            value_type AS "valueType", options, num_min AS "numMin", num_max AS "numMax",
            description, is_system AS "isSystem", updated_at AS "updatedAt"
-      FROM portal.parameters
+      FROM parameters
      ORDER BY group_code, id
   `)
   res.json(rows)
@@ -75,7 +75,7 @@ parametersRouter.post('/', requirePermission('portal', 'create'), async (req, re
     const d = p.data
     const value = d.valueType === 'secret' && d.value ? encryptSecret(d.value) : d.value
     const { rows } = await pool.query(
-      `INSERT INTO portal.parameters
+      `INSERT INTO parameters
          (group_code, param_key, value, value_type, options, num_min, num_max, description, updated_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id::text AS id`,
       [d.groupCode, d.key, value, d.valueType, d.options?.length ? d.options : null, d.numMin, d.numMax, d.description, req.user!.id],
@@ -98,8 +98,8 @@ parametersRouter.put('/:id', requirePermission('portal', 'update'), async (req, 
     await withTx(async (c) => {
       const cur = await c.query(
         // `SELECT is_system, value_type, value, options, num_min, num_max
-        //    FROM portal.parameters WHERE id = $1 FOR UPDATE`,
-        `SELECT group_code, param_key, is_system, value_type, value, options, num_min, num_max FROM portal.parameters WHERE id = $1 FOR UPDATE`,
+        //    FROM parameters WHERE id = $1 FOR UPDATE`,
+        `SELECT group_code, param_key, is_system, value_type, value, options, num_min, num_max FROM parameters WHERE id = $1 FOR UPDATE`,
         [id],
       )
       const row = cur.rows[0]
@@ -124,7 +124,7 @@ parametersRouter.put('/:id', requirePermission('portal', 'update'), async (req, 
       const numMax = custom && d.numMax !== undefined ? d.numMax : row.num_max
 
       await c.query(
-        `UPDATE portal.parameters
+        `UPDATE parameters
             SET value = $2, description = $3, options = $4, num_min = $5, num_max = $6, updated_by = $7
           WHERE id = $1`,
         [id, value, d.description, options, numMin, numMax, req.user!.id],
@@ -140,10 +140,10 @@ parametersRouter.put('/:id', requirePermission('portal', 'update'), async (req, 
 parametersRouter.delete('/:id', requirePermission('portal', 'delete'), async (req, res) => {
   try {
     const id = idParam(String(req.params.id))
-    const cur = await pool.query('SELECT is_system FROM portal.parameters WHERE id = $1', [id])
+    const cur = await pool.query('SELECT is_system FROM parameters WHERE id = $1', [id])
     if (!cur.rows[0]) throw new HttpError(404, 'Parameter tidak ditemukan')
     if (cur.rows[0].is_system) throw new HttpError(403, 'Parameter sistem tidak boleh dihapus')
-    await pool.query('DELETE FROM portal.parameters WHERE id = $1', [id])
+    await pool.query('DELETE FROM parameters WHERE id = $1', [id])
     res.json({ ok: true })
   } catch (e) {
     fail(res, e)

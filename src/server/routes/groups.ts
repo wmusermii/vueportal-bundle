@@ -53,8 +53,8 @@ groupsRouter.get('/', requirePermission('groups', 'read'), async (req, res) => {
   const { rows } = await pool.query(
     `SELECT g.id::text AS id, g.code, g.name, g.description,
             g.is_system AS "isSystem", g.status,
-            (SELECT count(*)::int FROM portal.user_groups ug WHERE ug.group_id = g.id) AS "memberCount"
-       FROM portal.groups g
+            (SELECT count(*)::int FROM user_groups ug WHERE ug.group_id = g.id) AS "memberCount"
+       FROM groups g
       WHERE $1::boolean OR NOT g.is_system
       ORDER BY g.is_system DESC, g.name`,
     [sys],
@@ -67,9 +67,9 @@ groupsRouter.get('/pages', requirePermission('groups', 'read'), async (_req, res
   const { rows } = await pool.query(`
     SELECT m.id::text AS id, m.code,
            concat_ws(' / ', gp.title, p.title, m.title) AS label
-      FROM portal.menus m
-      LEFT JOIN portal.menus p  ON p.id  = m.parent_id
-      LEFT JOIN portal.menus gp ON gp.id = p.parent_id
+      FROM menus m
+      LEFT JOIN menus p  ON p.id  = m.parent_id
+      LEFT JOIN menus gp ON gp.id = p.parent_id
      WHERE m.type = 'page' AND m.status = 'active'
      ORDER BY label
   `)
@@ -82,7 +82,7 @@ groupsRouter.get('/:id', requirePermission('groups', 'read'), async (req, res) =
     const g = await pool.query(
       `SELECT id::text AS id, code, name, COALESCE(description, '') AS description,
               is_system AS "isSystem", status
-         FROM portal.groups WHERE id = $1`,
+         FROM groups WHERE id = $1`,
       [id],
     )
     if (!g.rows[0] || (g.rows[0].isSystem && !(await isSystemUser(req.user!.id)))) {
@@ -91,7 +91,7 @@ groupsRouter.get('/:id', requirePermission('groups', 'read'), async (req, res) =
     const p = await pool.query(
       `SELECT menu_id::text AS "menuId", can_create AS "create", can_read AS "read",
               can_update AS "update", can_delete AS "delete", needs_approval AS "needsApproval"
-         FROM portal.group_menu_permissions WHERE group_id = $1`,
+         FROM group_menu_permissions WHERE group_id = $1`,
       [id],
     )
     res.json({ ...g.rows[0], permissions: p.rows })
@@ -117,7 +117,7 @@ groupsRouter.post('/', requirePermission('groups', 'create'), async (req, res) =
             await assertCanGrant(c, actor, p.data.permissions)
             const perms = await resolveFlags(c, actor, null, p.data.permissions)
             const { rows } = await c.query(
-              `INSERT INTO portal.groups (code, name, description, status)
+              `INSERT INTO groups (code, name, description, status)
                VALUES ($1, $2, $3, $4) RETURNING id`,
               [p.data.code, p.data.name, p.data.description || null, p.data.status],
             )
@@ -129,7 +129,7 @@ groupsRouter.post('/', requirePermission('groups', 'create'), async (req, res) =
         describe: () =>
           withTx(async (c) => {
             await assertCanGrant(c, actor, p.data.permissions)
-            const dup = await c.query('SELECT 1 FROM portal.groups WHERE code = $1 OR name = $2', [
+            const dup = await c.query('SELECT 1 FROM groups WHERE code = $1 OR name = $2', [
               p.data.code,
               p.data.name,
             ])
@@ -175,7 +175,7 @@ groupsRouter.put('/:id', requirePermission('groups', 'update'), async (req, res)
         // jalur langsung
         runNow: () =>
           withTx(async (c) => {
-            const cur = await c.query('SELECT is_system FROM portal.groups WHERE id = $1 FOR UPDATE', [id])
+            const cur = await c.query('SELECT is_system FROM groups WHERE id = $1 FOR UPDATE', [id])
             if (!cur.rows[0]) throw new HttpError(404, 'Group tidak ditemukan')
 
             if (cur.rows[0].is_system) {
@@ -183,7 +183,7 @@ groupsRouter.put('/:id', requirePermission('groups', 'update'), async (req, res)
                 throw new HttpError(403, 'Hanya admin yang boleh mengubah group sistem')
               }
               // kode, status, dan izin group sistem dikunci
-              await c.query('UPDATE portal.groups SET name = $2, description = $3 WHERE id = $1', [
+              await c.query('UPDATE groups SET name = $2, description = $3 WHERE id = $1', [
                 id,
                 p.data.name,
                 p.data.description || null,
@@ -194,7 +194,7 @@ groupsRouter.put('/:id', requirePermission('groups', 'update'), async (req, res)
             await assertCanGrant(c, actor, p.data.permissions)
             const perms = await resolveFlags(c, actor, id, p.data.permissions)
             await c.query(
-              `UPDATE portal.groups SET code = $2, name = $3, description = $4, status = $5 WHERE id = $1`,
+              `UPDATE groups SET code = $2, name = $3, description = $4, status = $5 WHERE id = $1`,
               [id, p.data.code, p.data.name, p.data.description || null, p.data.status],
             )
             await savePermissions(c, id, perms)
@@ -242,10 +242,10 @@ groupsRouter.delete('/:id', requirePermission('groups', 'delete'), async (req, r
         // jalur langsung
         runNow: () =>
           withTx(async (c) => {
-            const cur = await c.query('SELECT is_system FROM portal.groups WHERE id = $1 FOR UPDATE', [id])
+            const cur = await c.query('SELECT is_system FROM groups WHERE id = $1 FOR UPDATE', [id])
             if (!cur.rows[0]) throw new HttpError(404, 'Group tidak ditemukan')
             if (cur.rows[0].is_system) throw new HttpError(403, 'Group sistem tidak boleh dihapus')
-            await c.query('DELETE FROM portal.groups WHERE id = $1', [id]) // gagal jika masih ada anggota
+            await c.query('DELETE FROM groups WHERE id = $1', [id]) // gagal jika masih ada anggota
           }),
         // jalur approval
         describe: () =>
@@ -286,12 +286,12 @@ groupsRouter.get('/:id/members', requirePermission('groups', 'update'), async (r
       `SELECT u.id::text AS id, u.username, u.full_name AS "fullName", u.status,
               COALESCE(ug.group_id = $1::bigint, false) AS "isMember",
               CASE WHEN ug.group_id IS NOT NULL AND ug.group_id <> $1::bigint THEN og.name END AS "otherGroup"
-         FROM portal.users u
-         LEFT JOIN portal.user_groups ug ON ug.user_id = u.id
-         LEFT JOIN portal.groups og ON og.id = ug.group_id
+         FROM users u
+         LEFT JOIN user_groups ug ON ug.user_id = u.id
+         LEFT JOIN groups og ON og.id = ug.group_id
         WHERE $2::boolean OR NOT EXISTS (
-          SELECT 1 FROM portal.user_groups x
-            JOIN portal.groups xg ON xg.id = x.group_id
+          SELECT 1 FROM user_groups x
+            JOIN groups xg ON xg.id = x.group_id
            WHERE x.user_id = u.id AND xg.is_system
         )
         ORDER BY u.full_name`,
@@ -328,11 +328,11 @@ groupsRouter.put('/:id/members', requirePermission('groups', 'update'), async (r
           withTx(async (c) => {
             const { added, removed, current } = await planMembers(c, id, actor, p.data.userIds)
             if (added.length === 0 && removed.length === 0) throw new HttpError(400, 'Tidak ada perubahan anggota')
-            const g = await c.query('SELECT code, name FROM portal.groups WHERE id = $1', [id])
+            const g = await c.query('SELECT code, name FROM groups WHERE id = $1', [id])
             const names = async (ids: string[]) => {
               if (ids.length === 0) return ''
               const r = await c.query(
-                'SELECT username FROM portal.users WHERE id = ANY($1::bigint[]) ORDER BY username',
+                'SELECT username FROM users WHERE id = ANY($1::bigint[]) ORDER BY username',
                 [ids],
               )
               return r.rows.map((x) => x.username).join(', ')

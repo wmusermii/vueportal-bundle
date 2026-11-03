@@ -15,7 +15,7 @@ export async function getMenuTree(userId: string): Promise<MenuNode[]> {
   const [{ rows }, perms] = await Promise.all([
     pool.query(
       `SELECT id, parent_id, code, title, type, path, icon
-         FROM portal.menus
+         FROM menus
         WHERE status = 'active'
         ORDER BY level, sort_order, id`,
     ),

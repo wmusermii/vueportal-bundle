@@ -32,7 +32,7 @@ export const publicThemeRouter = Router()
 publicThemeRouter.get('/', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT param_key, value FROM portal.parameters WHERE group_code = 'themes'`)
+      `SELECT param_key, value FROM parameters WHERE group_code = 'themes'`)
     res.set('Cache-Control', 'no-store')
     res.json(Object.fromEntries(rows.map((r) => [r.param_key, r.value])))
   } catch (e) {
@@ -43,7 +43,7 @@ publicThemeRouter.get('/', async (_req, res) => {
 publicThemeRouter.get('/asset/:key', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT mime_type, data FROM portal.theme_assets WHERE asset_key = $1',
+      'SELECT mime_type, data FROM theme_assets WHERE asset_key = $1',
       [String(req.params.key)])
     if (!rows[0]) {
       res.sendStatus(404)
@@ -94,7 +94,7 @@ themeRouter.put('/', requirePermission('portal', 'update'), async (req, res) => 
     await withTx(async (c) => {
       for (const [k, v] of Object.entries(p.data)) {
         const r = await c.query(
-          `UPDATE portal.parameters SET value = $1, updated_by = $2
+          `UPDATE parameters SET value = $1, updated_by = $2
             WHERE group_code = 'themes' AND param_key = $3`,
           [String(v), req.user!.id, k])
         if (r.rowCount === 0) {
@@ -138,14 +138,14 @@ themeRouter.put(
     try {
       await withTx(async (c) => {
         await c.query(
-          `INSERT INTO portal.theme_assets (asset_key, mime_type, data, updated_by)
+          `INSERT INTO theme_assets (asset_key, mime_type, data, updated_by)
            VALUES ($1,$2,$3,$4)
            ON CONFLICT (asset_key) DO UPDATE
              SET mime_type = EXCLUDED.mime_type, data = EXCLUDED.data,
                  updated_by = EXCLUDED.updated_by, updated_at = now()`,
           [key, mime, buf, req.user!.id])
         await c.query(
-          `UPDATE portal.parameters SET value = $1, updated_by = $2
+          `UPDATE parameters SET value = $1, updated_by = $2
             WHERE group_code = 'themes' AND param_key = $3`,
           [url, req.user!.id, `${key}_url`])
       })
@@ -165,9 +165,9 @@ themeRouter.delete('/asset/:key', requirePermission('portal', 'update'), async (
   }
   try {
     await withTx(async (c) => {
-      await c.query('DELETE FROM portal.theme_assets WHERE asset_key = $1', [key])
+      await c.query('DELETE FROM theme_assets WHERE asset_key = $1', [key])
       await c.query(
-        `UPDATE portal.parameters SET value = '', updated_by = $1
+        `UPDATE parameters SET value = '', updated_by = $1
           WHERE group_code = 'themes' AND param_key = $2`,
         [req.user!.id, `${key}_url`])
     })

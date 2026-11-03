@@ -20,7 +20,7 @@ export const groupsChange = makeChangeHandler({
     if (record.entity === 'members') {
       const added: string[] = record.added ?? []
       const removed: string[] = record.removed ?? []
-      const g = await db.query('SELECT is_system, status FROM portal.groups WHERE id = $1 FOR UPDATE', [targetId])
+      const g = await db.query('SELECT is_system, status FROM groups WHERE id = $1 FOR UPDATE', [targetId])
       if (!g.rows[0]) throw new ApprovalError(409, 'Group sudah tidak ada. Tolak pengajuan ini.')
       if (g.rows[0].is_system) {
         throw new ApprovalError(409, 'Anggota group sistem hanya boleh diubah admin langsung. Tolak pengajuan ini.')
@@ -32,13 +32,13 @@ export const groupsChange = makeChangeHandler({
         if (g.rows[0].status !== 'active') {
           throw new ApprovalError(409, 'Group sekarang nonaktif dan tidak bisa diberi anggota. Tolak pengajuan ini.')
         }
-        const ok = await db.query('SELECT count(*)::int AS n FROM portal.users WHERE id = ANY($1::bigint[])', [added])
+        const ok = await db.query('SELECT count(*)::int AS n FROM users WHERE id = ANY($1::bigint[])', [added])
         if (ok.rows[0].n !== added.length) {
           throw new ApprovalError(409, 'Ada user yang sudah tidak ada. Tolak pengajuan ini.')
         }
       }
       const adm = await db.query(
-        `SELECT EXISTS (SELECT 1 FROM portal.user_groups ug JOIN portal.groups sg ON sg.id = ug.group_id
+        `SELECT EXISTS (SELECT 1 FROM user_groups ug JOIN groups sg ON sg.id = ug.group_id
                          WHERE ug.user_id = ANY($1::bigint[]) AND sg.is_system) AS yes`,
         [[...added, ...removed]],
       )
@@ -56,7 +56,7 @@ export const groupsChange = makeChangeHandler({
       await assertCanGrant(db, requestedBy, perms)
       try {
         const { rows } = await db.query(
-          `INSERT INTO portal.groups (code, name, description, status) VALUES ($1, $2, $3, $4) RETURNING id`,
+          `INSERT INTO groups (code, name, description, status) VALUES ($1, $2, $3, $4) RETURNING id`,
           [record.code, record.name, record.description || null, record.status],
         )
         await savePermissions(db, String(rows[0].id), perms)
@@ -68,7 +68,7 @@ export const groupsChange = makeChangeHandler({
     }
 
     if (!targetId) throw new ApprovalError(500, 'Pengajuan tidak memiliki target')
-    const cur = await db.query('SELECT is_system FROM portal.groups WHERE id = $1 FOR UPDATE', [targetId])
+    const cur = await db.query('SELECT is_system FROM groups WHERE id = $1 FOR UPDATE', [targetId])
     if (!cur.rows[0]) throw new ApprovalError(409, 'Group sudah tidak ada. Tolak pengajuan ini.')
     if (cur.rows[0].is_system) {
       throw new ApprovalError(409, 'Group sistem tidak dapat diubah atau dihapus lewat pengajuan. Tolak pengajuan ini.')
@@ -78,7 +78,7 @@ export const groupsChange = makeChangeHandler({
       await assertCanGrant(db, requestedBy, perms)
       try {
         await db.query(
-          `UPDATE portal.groups SET code = $2, name = $3, description = $4, status = $5 WHERE id = $1`,
+          `UPDATE groups SET code = $2, name = $3, description = $4, status = $5 WHERE id = $1`,
           [targetId, record.code, record.name, record.description || null, record.status],
         )
       } catch (e: any) {
@@ -90,7 +90,7 @@ export const groupsChange = makeChangeHandler({
     }
 
     try {
-      await db.query('DELETE FROM portal.groups WHERE id = $1', [targetId])
+      await db.query('DELETE FROM groups WHERE id = $1', [targetId])
     } catch (e: any) {
       if (e?.code === '23503') {
         if (e.constraint === 'fk_aa_group') {

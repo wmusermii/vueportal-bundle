@@ -15,11 +15,11 @@ export async function listTypes() {
                        'label', COALESCE(g."name", u.full_name),
                        'sub', COALESCE(g.code, u.username))
                      ORDER BY a.role, a.level, COALESCE(g."name", u.full_name))
-                FROM portal.approval_assignments a
-                LEFT JOIN portal.groups g ON g.id = a.group_id
-                LEFT JOIN portal.users u ON u.id = a.user_id
+                FROM approval_assignments a
+                LEFT JOIN groups g ON g.id = a.group_id
+                LEFT JOIN users u ON u.id = a.user_id
                WHERE a.type_id = t.id), '[]'::json) AS assignments
-       FROM portal.approval_types t
+       FROM approval_types t
       WHERE t.status = 'active'
       ORDER BY t."name"`,
   )
@@ -29,14 +29,14 @@ export async function listTypes() {
 /** Pilihan penerima. Administrator tidak ditawarkan: dia selalu boleh dan tidak perlu ditugaskan. */
 export async function listOptions() {
   const groups = await pool.query(
-    `SELECT id, code, "name" FROM portal.groups
+    `SELECT id, code, "name" FROM groups
       WHERE status = 'active' AND code <> 'ADMIN' ORDER BY "name"`,
   )
   const users = await pool.query(
-    `SELECT u.id, u.username, u.full_name AS "fullName" FROM portal.users u
+    `SELECT u.id, u.username, u.full_name AS "fullName" FROM users u
       WHERE u.status = 'active'
-        AND NOT EXISTS (SELECT 1 FROM portal.user_groups ug
-                          JOIN portal.groups g ON g.id = ug.group_id
+        AND NOT EXISTS (SELECT 1 FROM user_groups ug
+                          JOIN groups g ON g.id = ug.group_id
                          WHERE ug.user_id = u.id AND g.code = 'ADMIN')
       ORDER BY u.full_name`,
   )
@@ -56,7 +56,7 @@ export async function addAssignment(body: any, createdBy: string) {
   if (hasGroup === hasUser) throw new ApprovalError(400, 'Pilih satu group atau satu user')
 
   const { rows: [type] } = await pool.query<{ id: string; is_public: boolean }>(
-    `SELECT id, is_public FROM portal.approval_types WHERE id = $1 AND status = 'active'`,
+    `SELECT id, is_public FROM approval_types WHERE id = $1 AND status = 'active'`,
     [String(body.typeId)],
   )
   if (!type) throw new ApprovalError(404, 'Jenis approval tidak ditemukan')
@@ -66,17 +66,17 @@ export async function addAssignment(body: any, createdBy: string) {
 
   if (hasGroup) {
     const { rows: [g] } = await pool.query<{ code: string }>(
-      `SELECT code FROM portal.groups WHERE id = $1 AND status = 'active'`,
+      `SELECT code FROM groups WHERE id = $1 AND status = 'active'`,
       [String(body.groupId)],
     )
     if (!g) throw new ApprovalError(400, 'Group tidak valid')
     if (g.code === 'ADMIN') throw new ApprovalError(400, 'Administrator tidak perlu ditugaskan')
   } else {
     const { rows: [u] } = await pool.query(
-      `SELECT 1 FROM portal.users u
+      `SELECT 1 FROM users u
         WHERE u.id = $1 AND u.status = 'active'
-          AND NOT EXISTS (SELECT 1 FROM portal.user_groups ug
-                            JOIN portal.groups g ON g.id = ug.group_id
+          AND NOT EXISTS (SELECT 1 FROM user_groups ug
+                            JOIN groups g ON g.id = ug.group_id
                            WHERE ug.user_id = u.id AND g.code = 'ADMIN')`,
       [String(body.userId)],
     )
@@ -86,7 +86,7 @@ export async function addAssignment(body: any, createdBy: string) {
   // level harus berurutan: level N hanya boleh ada kalau level 1..N-1 sudah punya approver
   if (role === 'approver' && level > 1) {
     const { rows: [c] } = await pool.query<{ n: number }>(
-      `SELECT count(DISTINCT level)::int AS n FROM portal.approval_assignments
+      `SELECT count(DISTINCT level)::int AS n FROM approval_assignments
         WHERE type_id = $1 AND role = 'approver' AND level < $2`,
       [type.id, level],
     )
@@ -95,7 +95,7 @@ export async function addAssignment(body: any, createdBy: string) {
 
   try {
     await pool.query(
-      `INSERT INTO portal.approval_assignments (type_id, role, level, group_id, user_id, created_by)
+      `INSERT INTO approval_assignments (type_id, role, level, group_id, user_id, created_by)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [type.id, role, level, hasGroup ? String(body.groupId) : null, hasUser ? String(body.userId) : null, createdBy],
     )
@@ -109,11 +109,11 @@ export async function removeAssignment(id: string) {
   if (!isId(id)) throw new ApprovalError(400, 'ID tidak valid')
   const { rows: [a] } = await pool.query<{ role: string; same_level: number; has_higher: boolean }>(
     `SELECT a.role,
-            (SELECT count(*) FROM portal.approval_assignments b
+            (SELECT count(*) FROM approval_assignments b
               WHERE b.type_id = a.type_id AND b.role = a.role AND b.level = a.level)::int AS same_level,
-            EXISTS (SELECT 1 FROM portal.approval_assignments b
+            EXISTS (SELECT 1 FROM approval_assignments b
                      WHERE b.type_id = a.type_id AND b.role = 'approver' AND b.level > a.level) AS has_higher
-       FROM portal.approval_assignments a WHERE a.id = $1`,
+       FROM approval_assignments a WHERE a.id = $1`,
     [id],
   )
   if (!a) throw new ApprovalError(404, 'Penugasan tidak ditemukan')
@@ -121,5 +121,5 @@ export async function removeAssignment(id: string) {
   if (a.role === 'approver' && a.same_level === 1 && a.has_higher) {
     throw new ApprovalError(409, 'Level ini masih punya level di atasnya. Hapus level di atasnya terlebih dahulu')
   }
-  await pool.query(`DELETE FROM portal.approval_assignments WHERE id = $1`, [id])
+  await pool.query(`DELETE FROM approval_assignments WHERE id = $1`, [id])
 }

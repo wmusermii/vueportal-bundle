@@ -46,13 +46,13 @@ usersRouter.get('/', requirePermission('users', 'read'), async (req, res) => {
                 FILTER (WHERE g.id IS NOT NULL),
               '[]'
             ) AS groups
-       FROM portal.users u
-       LEFT JOIN portal.user_groups ug ON ug.user_id = u.id
-       LEFT JOIN portal.groups g ON g.id = ug.group_id
+       FROM users u
+       LEFT JOIN user_groups ug ON ug.user_id = u.id
+       LEFT JOIN groups g ON g.id = ug.group_id
       WHERE u.id <> $1
         AND NOT EXISTS (
-          SELECT 1 FROM portal.user_groups x
-            JOIN portal.groups xg ON xg.id = x.group_id
+          SELECT 1 FROM user_groups x
+            JOIN groups xg ON xg.id = x.group_id
            WHERE x.user_id = u.id AND xg.is_system
         )
       GROUP BY u.id
@@ -77,7 +77,7 @@ usersRouter.post('/', requirePermission('users', 'create'), async (req, res) => 
         // jalur langsung (Administrator / group tanpa centang "Butuh approval"): kode lama
         runNow: async () => {
           const { rows } = await pool.query(
-            `INSERT INTO portal.users (username, email, full_name, password_hash, status)
+            `INSERT INTO users (username, email, full_name, password_hash, status)
              VALUES ($1, $2, $3, $4, $5) RETURNING id`,
             [p.data.username, p.data.email, p.data.fullName, hash, p.data.status],
           )
@@ -85,7 +85,7 @@ usersRouter.post('/', requirePermission('users', 'create'), async (req, res) => 
         },
         // jalur approval: hanya dipanggil bila diantrekan
         describe: async () => {
-          const dup = await pool.query('SELECT 1 FROM portal.users WHERE username = $1 OR email = $2', [
+          const dup = await pool.query('SELECT 1 FROM users WHERE username = $1 OR email = $2', [
             p.data.username,
             p.data.email,
           ])
@@ -134,11 +134,11 @@ usersRouter.put('/:id', requirePermission('users', 'update'), async (req, res) =
         // jalur langsung: kode lama
         runNow: () =>
           withTx(async (c) => {
-            const found = await c.query('SELECT 1 FROM portal.users WHERE id = $1 FOR UPDATE', [id])
+            const found = await c.query('SELECT 1 FROM users WHERE id = $1 FOR UPDATE', [id])
             if (found.rowCount === 0) throw new HttpError(404, 'User tidak ditemukan')
             await assertManageable(c, id, req.user!.id)
             await c.query(
-              `UPDATE portal.users
+              `UPDATE users
                   SET email = $2, full_name = $3, status = $4,
                       password_hash = COALESCE($5, password_hash)
                 WHERE id = $1`,
@@ -149,7 +149,7 @@ usersRouter.put('/:id', requirePermission('users', 'update'), async (req, res) =
         describe: () =>
           withTx(async (c) => {
             const cur = await c.query(
-              `SELECT username, email, full_name AS "fullName", status FROM portal.users WHERE id = $1`,
+              `SELECT username, email, full_name AS "fullName", status FROM users WHERE id = $1`,
               [id],
             )
             if (cur.rowCount === 0) throw new HttpError(404, 'User tidak ditemukan')
@@ -195,7 +195,7 @@ usersRouter.delete('/:id', requirePermission('users', 'delete'), async (req, res
         runNow: () =>
           withTx(async (c) => {
             await assertManageable(c, id, req.user!.id)
-            const r = await c.query('DELETE FROM portal.users WHERE id = $1', [id])
+            const r = await c.query('DELETE FROM users WHERE id = $1', [id])
             if (r.rowCount === 0) throw new HttpError(404, 'User tidak ditemukan')
           }),
         // jalur approval
@@ -203,7 +203,7 @@ usersRouter.delete('/:id', requirePermission('users', 'delete'), async (req, res
           withTx(async (c) => {
             await assertManageable(c, id, req.user!.id)
             const cur = await c.query(
-              `SELECT username, email, full_name AS "fullName", status FROM portal.users WHERE id = $1`,
+              `SELECT username, email, full_name AS "fullName", status FROM users WHERE id = $1`,
               [id],
             )
             if (cur.rowCount === 0) throw new HttpError(404, 'User tidak ditemukan')

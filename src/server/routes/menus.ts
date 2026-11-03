@@ -42,11 +42,11 @@ menusRouter.get('/', requirePermission('menus', 'read'), async (_req, res) => {
   const { rows } = await pool.query(`
     WITH RECURSIVE t AS (
       SELECT m.*, ARRAY[m.sort_order::bigint, m.id] AS sort_key
-        FROM portal.menus m
+        FROM menus m
        WHERE m.parent_id IS NULL
       UNION ALL
       SELECT c.*, t.sort_key || ARRAY[c.sort_order::bigint, c.id]
-        FROM portal.menus c
+        FROM menus c
         JOIN t ON c.parent_id = t.id
     )
     SELECT id::text AS id, parent_id::text AS "parentId", code, title, type, path, icon,
@@ -65,7 +65,7 @@ menusRouter.post('/', requirePermission('menus', 'create'), async (req, res) => 
   }
   try {
     const { rows } = await pool.query(
-      `INSERT INTO portal.menus (parent_id, code, title, type, path, icon, sort_order, status)
+      `INSERT INTO menus (parent_id, code, title, type, path, icon, sort_order, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id::text AS id`,
       [p.data.parentId, p.data.code, p.data.title, p.data.type, p.data.path, p.data.icon, p.data.sortOrder, p.data.status],
     )
@@ -84,7 +84,7 @@ menusRouter.put('/:id', requirePermission('menus', 'update'), async (req, res) =
   try {
     const id = idParam(String(req.params.id))
     const r = await pool.query(
-      `UPDATE portal.menus
+      `UPDATE menus
           SET parent_id = $2, code = $3, title = $4, type = $5,
               path = $6, icon = $7, sort_order = $8, status = $9
         WHERE id = $1`,
@@ -100,7 +100,7 @@ menusRouter.put('/:id', requirePermission('menus', 'update'), async (req, res) =
 menusRouter.delete('/:id', requirePermission('menus', 'delete'), async (req, res) => {
   try {
     const id = idParam(String(req.params.id))
-    const r = await pool.query('DELETE FROM portal.menus WHERE id = $1', [id])
+    const r = await pool.query('DELETE FROM menus WHERE id = $1', [id])
     if (r.rowCount === 0) throw new HttpError(404, 'Menu tidak ditemukan')
     res.json({ ok: true })
   } catch (e) {
